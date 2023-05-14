@@ -1,7 +1,12 @@
 #include <stdio.h>
 
+#include "qoi.h"
+
 int main(void)
 {
-	printf("Hello, world!\n");
-	return 0;
+	int retval;
+	printf("Testing qoi_encode...\n");
+	
+	retval = qoi_encode();
+	return retval;
 };
