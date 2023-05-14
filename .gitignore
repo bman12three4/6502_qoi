@@ -2,3 +2,6 @@
 *.map
 *.o
 lists/
+
+*.png
+*.qoi

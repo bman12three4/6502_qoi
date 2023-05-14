@@ -33,6 +33,10 @@ typedef union {
 	uint32_t v;
 } qoi_rgba_t;
 
-int qoi_encode();
+#define QOI_PIXELS_MAX ((unsigned int)32768)
+
+void *qoi_encode(const void *data, const qoi_desc *desc, int *out_len);
+
+void *qoi_decode(const void *data, int size, qoi_desc *desc, int channels);
 
 #endif
