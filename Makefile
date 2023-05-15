@@ -17,7 +17,7 @@ LISTS=lists
 all: $(BIN)
 
 sim: $(BIN)
-	$(SIM) $(SIMARGS) $(BIN)
+	$(SIM) $(SIMARGS) $(BIN) $(ARGS)
 
 $(BIN): $(OBJS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) -o $@

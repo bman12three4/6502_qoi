@@ -33,7 +33,7 @@ typedef union {
 	uint32_t v;
 } qoi_rgba_t;
 
-#define QOI_PIXELS_MAX ((unsigned int)32768)
+#define QOI_PIXELS_MAX ((uint32_t)32768UL)
 
 #ifndef QOI_ZEROARR
 	#define QOI_ZEROARR(a) memset((a),0,sizeof(a))
@@ -43,4 +43,7 @@ void *qoi_encode(const void *data, const qoi_desc *desc, int *out_len);
 
 void *qoi_decode(const void *data, int size, qoi_desc *desc, int channels);
 
+int qoi_write(const char *filename, const void *data, const qoi_desc *desc);
+
+void *qoi_read(const char *filename, qoi_desc *desc, int channels);
 #endif
