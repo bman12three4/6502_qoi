@@ -35,6 +35,10 @@ typedef union {
 
 #define QOI_PIXELS_MAX ((unsigned int)32768)
 
+#ifndef QOI_ZEROARR
+	#define QOI_ZEROARR(a) memset((a),0,sizeof(a))
+#endif
+
 void *qoi_encode(const void *data, const qoi_desc *desc, int *out_len);
 
 void *qoi_decode(const void *data, int size, qoi_desc *desc, int channels);

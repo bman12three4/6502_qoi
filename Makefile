@@ -1,7 +1,7 @@
 CC=cl65
-CFLAGS=-T -t sim65c02
+CFLAGS=-T -t sim65c02 -O
 SIM=sim65
-SIMARGS=--verbose
+SIMARGS=-c
 LDFLAGS=-m $(NAME).map
 
 NAME=qoi

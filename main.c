@@ -40,7 +40,7 @@ int main(void)
 	desc.width = 32;
 	desc.height = 32;
 	desc.channels = 4;
-	desc.colorspace = QOI_LINEAR;
+	desc.colorspace = QOI_SRGB;
 
 	retval = qoi_encode(data, &desc, &len);
 
