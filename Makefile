@@ -1,7 +1,7 @@
 CC=cl65
 CFLAGS=-T -t sim65c02
 SIM=sim65
-SIMARGS=
+SIMARGS=--verbose
 LDFLAGS=-m $(NAME).map
 
 NAME=qoi
@@ -40,5 +40,3 @@ $(LISTS):
 .PHONY: clean
 clean:
 	rm -rf $(OBJS) $(BIN) $(HEX) $(LISTS) $(NAME).map
-	rm -rf $(FSDIR)/$(BIN)
-
