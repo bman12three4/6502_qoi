@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #include "qoi.h"
+#include "stream_qoi.h"
 
 #define STR_ENDS_WITH(S, E) (strcmp(S + strlen(S) - (sizeof(E)-1), E) == 0)
 
@@ -65,7 +66,7 @@ int main(int argc, char **argv) {
 		desc.height = h;
 		desc.channels = channels;
 		desc.colorspace = QOI_SRGB;
-		encoded = qoi_write(argv[2], pixels, &desc);
+		encoded = s_qoi_write(argv[2], pixels, &desc);
 	}
 
 	if (!encoded) {
