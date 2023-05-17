@@ -16,6 +16,14 @@ static void qoi_write_32(unsigned char *bytes, uint32_t *p, uint32_t v)
 	bytes[(*p)++] = (0x000000ff & v);
 }
 
+static uint32_t qoi_read_32(const unsigned char *bytes, uint32_t *p) {
+	uint32_t a = bytes[(*p)++];
+	uint32_t b = bytes[(*p)++];
+	uint32_t c = bytes[(*p)++];
+	uint32_t d = bytes[(*p)++];
+	return a << 24 | b << 16 | c << 8 | d;
+}
+
 static int run;
 static qoi_rgba_t px, px_prev;
 static int px_end;
@@ -109,6 +117,7 @@ void *s_qoi_encode(const void *data, const qoi_desc *desc, int *out_len)
 		desc->colorspace > 1 ||
 		desc->height >= QOI_PIXELS_MAX / desc->width
 	) {
+		printf("Failed encode size check\n");
 		return 0;
 	}
 
@@ -119,6 +128,7 @@ void *s_qoi_encode(const void *data, const qoi_desc *desc, int *out_len)
 	p = 0;
 	bytes = (unsigned char*) malloc(max_size);
 	if (!bytes) {
+		printf("Failed malloc\n");
 		return 0;
 	}
 
@@ -158,9 +168,211 @@ void *s_qoi_encode(const void *data, const qoi_desc *desc, int *out_len)
 			bytes[p++] = px_enc[i];
 		}
 	}
+	*out_len = p;
+	return bytes;
 
 }
 
+uint8_t state;
+uint8_t op_read, op_write, count;
+
+uint8_t b[4];
+uint8_t bufw[4];
+uint8_t buf_idx;
+
+uint8_t vg;
+
+enum state {DS_FETCH_OP, DS_DECODE_OP, DS_RGB, DS_RGBA, DS_IDX, DS_DIFF, DS_LUMA, DS_RUN, DS_WRITE_PX};
+
+void s_qoi_decode_op()
+{
+	switch (state) {
+	case DS_FETCH_OP:
+		if (run > 0) {
+			run--;
+			state = DS_WRITE_PX;
+		}
+		else {
+			state = DS_DECODE_OP;
+			count = 1;
+			op_read = 1;
+		}
+		break;
+	case DS_DECODE_OP:
+		if (b[0] == QOI_OP_RGB) {
+			printf("OP_RGB\n");
+			state = DS_RGB;
+			count = 3;
+			op_read = 1;
+		}
+		else if (b[0] == QOI_OP_RGBA) {
+			printf("OP_RGBA\n");
+			state = DS_RGBA;
+			count = 4;
+			op_read = 1;
+		}
+		else if ((b[0] & QOI_MASK_2) == QOI_OP_INDEX) {
+			printf("OP_IDX\n");
+			state = DS_IDX;
+		}
+		else if ((b[0] & QOI_MASK_2) == QOI_OP_DIFF) {
+			printf("OP_DIFF\n");
+			state = DS_DIFF;
+
+		}
+		else if ((b[0] & QOI_MASK_2) == QOI_OP_LUMA) {
+			printf("OP_LUMA\n");
+			vg = (b[0] & 0x3f) - 32;
+			state = DS_LUMA;
+			count = 1;
+			op_read = 1;
+		}
+		else if ((b[0] & QOI_MASK_2) == QOI_OP_RUN) {
+			printf("OP_RUN\n");
+			state = DS_RUN;
+		}
+		break;
+	case DS_RGB:
+		state = DS_WRITE_PX;
+		px.rgba.r = b[0];
+		px.rgba.g = b[1];
+		px.rgba.b = b[2];
+		px.rgba.a = px_prev.rgba.a;
+		break;
+	case DS_RGBA:
+		state = DS_WRITE_PX;
+		px.rgba.r = b[0];
+		px.rgba.g = b[1];
+		px.rgba.b = b[2];
+		px.rgba.a = b[3];
+		break;
+	case DS_IDX:
+		state = DS_WRITE_PX;
+		px = index[b[0]];
+		break;
+	case DS_DIFF:
+		state = DS_WRITE_PX;
+		px.rgba.r += ((b[0] >> 4) & 0x03) - 2;
+		px.rgba.g += ((b[0] >> 2) & 0x03) - 2;
+		px.rgba.b += ( b[0]       & 0x03) - 2;
+		break;
+	case DS_LUMA:
+		state = DS_WRITE_PX;
+		px.rgba.r += vg - 8 + ((b[0] >> 4) & 0x0f);
+		px.rgba.g += vg;
+		px.rgba.b += vg - 8 +  (b[0]       & 0x0f);
+		break;
+	case DS_RUN:
+		state = DS_WRITE_PX;
+		run = (b[0] & 0x3f);
+		break;
+	case DS_WRITE_PX:
+		state = DS_FETCH_OP;
+		bufw[0] = px.rgba.r;
+		bufw[1] = px.rgba.g;
+		bufw[2] = px.rgba.b;
+		bufw[3] = px.rgba.a;
+		px_prev = px;
+		index[QOI_COLOR_HASH(px) % 64] = px;
+		op_write = 1;
+		count = 4;
+		break;
+	}
+}
+
+void s_qoi_send_byte(uint8_t b_in)
+{
+	b[buf_idx++] = b_in;
+	if (buf_idx == count) {
+		op_read = 0;
+		buf_idx = 0;
+		count = 0;
+	}
+}
+
+uint8_t s_qoi_read_byte()
+{
+	uint8_t b1;
+
+	b1 = bufw[buf_idx++];
+	if (buf_idx == count) {
+		op_write = 0;
+		buf_idx = 0;
+		count = 0;
+	}
+	return b1;
+}
+
+// Write works a little differently to read. It works more like verilog would
+void *s_qoi_decode(const void* data, int size, qoi_desc *desc, int channels) {
+	const unsigned char *bytes;
+	uint32_t header_magic;
+	unsigned char *pixels;
+	qoi_rgba_t px;
+	int px_len, chunks_len, px_pos;
+	uint32_t p = 0, run = 0;
+
+	if (
+		data == NULL || desc == NULL ||
+		(channels != 0 && channels != 3 && channels != 4) ||
+		size < QOI_HEADER_SIZE + (int)sizeof(qoi_padding)
+	) {
+		return NULL;
+	}
+
+	bytes = (const unsigned char *)data;
+
+	header_magic = qoi_read_32(bytes, &p);
+	desc->width = qoi_read_32(bytes, &p);
+	desc->height = qoi_read_32(bytes, &p);
+	desc->channels = bytes[p++];
+	desc->colorspace = bytes[p++];
+
+	if (
+		desc->width == 0 || desc->height == 0 ||
+		desc->channels < 3 || desc->channels > 4 ||
+		desc->colorspace > 1 ||
+		header_magic != QOI_MAGIC ||
+		desc->height >= QOI_PIXELS_MAX / desc->width
+	) {
+		return NULL;
+	}
+
+	if (channels == 0) {
+		channels = desc->channels;
+	}
+
+	px_len = desc->width * desc->height * channels;
+	pixels = (unsigned char *) malloc(px_len);
+	if (!pixels) {
+		return NULL;
+	}
+
+	QOI_ZEROARR(index);
+	px.rgba.r = 0;
+	px.rgba.g = 0;
+	px.rgba.b = 0;
+	px.rgba.a = 255;
+
+	chunks_len = size - (int)sizeof(qoi_padding);
+	px_pos = 0;
+
+	while (px_pos < px_len) {
+		s_qoi_decode_op();
+
+		while (op_read) {
+			printf("Reading %x:%lx\n", bytes[p], p);
+			s_qoi_send_byte(bytes[p++]);
+		}
+
+		while (op_write) {
+			pixels[px_pos++] = s_qoi_read_byte();
+			printf("Writing to %x:%x\n", pixels[px_pos-1], px_pos);
+		}
+	}
+
+	return pixels;
+}
 
 int s_qoi_write(const char* filename, const void* data, const qoi_desc *desc)
 {
@@ -168,7 +380,6 @@ int s_qoi_write(const char* filename, const void* data, const qoi_desc *desc)
 	int size;
 	void* encoded;
 
-	printf("QOI write\n");
 	if (!f) {
 		return 0;
 	}
@@ -187,3 +398,37 @@ int s_qoi_write(const char* filename, const void* data, const qoi_desc *desc)
 	return size;
 }
 
+void *s_qoi_read(const char *filename, qoi_desc *desc, int channels) {
+	FILE *f = fopen(filename, "rb");
+	int size, bytes_read;
+	void *pixels, *data;
+
+	if (!f) {
+		return NULL;
+	}
+
+	/*
+	fseek(f, 0, SEEK_END);
+	size = ftell(f);
+	if (size <= 0) {
+		fclose(f);
+		return NULL;
+	}
+	fseek(f, 0, SEEK_SET);
+	*/
+	
+	size = 32 * 32 * 4;
+
+	data = malloc(size);
+	if (!data) {
+		fclose(f);
+		return NULL;
+	}
+
+	bytes_read = fread(data, 1, size, f);
+	fclose(f);
+
+	pixels = s_qoi_decode(data, bytes_read, desc, channels);
+	free(data);
+	return pixels;
+}

@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
 	}
 	else if (STR_ENDS_WITH(argv[1], ".qoi")) {
 		printf("Opening a QOI file\n");
-		pixels = qoi_read(argv[1], &desc, 0);
+		pixels = s_qoi_read(argv[1], &desc, 0);
 		channels = desc.channels;
 		w = desc.width;
 		h = desc.height;
