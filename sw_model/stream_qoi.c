@@ -107,7 +107,7 @@ void *s_qoi_encode(const void *data, const qoi_desc *desc, int *out_len)
 	unsigned char* bytes;
 	const unsigned char *pixels;
 
-	uint8_t px_enc[5];
+	uint8_t px_enc[6];
 	uint8_t px_enc_len;
 
 	if (
@@ -168,6 +168,11 @@ void *s_qoi_encode(const void *data, const qoi_desc *desc, int *out_len)
 			bytes[p++] = px_enc[i];
 		}
 	}
+
+	for (i = 0; i < (int)sizeof(qoi_padding); i++) {
+		bytes[p++] = qoi_padding[i];
+	}
+
 	*out_len = p;
 	return bytes;
 
