@@ -62,7 +62,7 @@ end
 
 initial begin
 	$readmemh("pixels.mem", img);
-	$readmemh("hello.hex", rom);
+	$readmemh("qoi_sim.hex", rom);
 	reset = '1;
 	RDY = '1;
 	IRQ = '0;

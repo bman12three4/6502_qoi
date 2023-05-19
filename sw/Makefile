@@ -2,7 +2,7 @@ CC=cl65
 CFLAGS=-T -t none -I . --cpu "65C02"
 LDFLAGS=-C link.ld -m $(NAME).map
 
-NAME=hello
+NAME=qoi_sim
 
 BIN=$(NAME).bin
 HEX=$(NAME).hex
