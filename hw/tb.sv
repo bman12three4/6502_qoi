@@ -15,7 +15,7 @@ cpu_65c02 dut(.*);
 logic [7:0] ram [4096*8];
 logic [7:0] img [4096];
 logic [7:0] qoi [4096];
-logic [7:0] rom [4096*3];
+logic [7:0] rom [4096*4];
 
 logic img_access, qoi_access;
 
@@ -28,8 +28,8 @@ initial begin
 end
 
 always @(posedge clk) begin
-	if (AB >= 16'hd000 && ~WE) begin
-		DI <= rom[AB-16'hd000];
+	if (AB >= 16'hC000 && ~WE) begin
+		DI <= rom[AB-16'hC000];
 	end
 	if (AB < 16'h8000) begin
 		if (WE) begin
