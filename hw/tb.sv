@@ -22,10 +22,12 @@ logic img_access, qoi_access;
 assign img_access = (AB >= 16'h8000 && AB < 16'h9000);
 assign qoi_access = (AB >= 16'h9000 && AB < 16'ha000);
 
+`ifdef WAVES
 initial begin
     $dumpfile("tb.vcd");
     $dumpvars(0,tb);
 end
+`endif
 
 always @(posedge clk) begin
 	if (AB >= 16'hC000 && ~WE) begin

@@ -13,7 +13,11 @@ exe:
 run: exe
 	./$(NAME)
 
-waves: run
+exe_waves:
+	$(IVERILOG) $(SRCS) $(TB) -s $(TOP) $(IVERILOG_ARGS) -o $(NAME) -DWAVES
+
+waves: exe_waves
+	./$(NAME)
 	gtkwave tb.vcd &
 
 clean:
