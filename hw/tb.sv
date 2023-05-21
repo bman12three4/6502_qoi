@@ -81,7 +81,7 @@ always @(posedge clk) begin
 end
 
 initial begin
-	$readmemh("pixels.mem", img);
+	$readmemh("dots.mem", img);
 	$readmemh("qoi_sim.hex", rom);
 	reset = '1;
 	RDY = '1;

@@ -1,5 +1,5 @@
 IVERILOG=iverilog
-IVERILOG_ARGS=-g2012
+IVERILOG_ARGS=-g2012 -DSIM
 PKGS=qoi_types.sv
 SRCS=qoi.sv ALU.v cpu_65c02.v
 TB=tb.sv
