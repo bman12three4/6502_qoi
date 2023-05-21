@@ -1,4 +1,4 @@
-<mxfile host="Electron" modified="2023-05-20T21:29:30.453Z" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/21.2.8 Chrome/112.0.5615.165 Electron/24.2.0 Safari/537.36" etag="hV_zqWhdu-_TLy52i9G2" version="21.2.8" type="device" pages="2">
+<mxfile host="Electron" modified="2023-05-21T15:55:29.505Z" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/21.2.8 Chrome/112.0.5615.165 Electron/24.2.0 Safari/537.36" etag="D8TFoqg0oYTG9kupZbq0" version="21.2.8" type="device" pages="2">
   <diagram name="SW Model" id="4ojXQKdvb_Xtseve3jii">
     <mxGraphModel dx="479" dy="329" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
@@ -1423,8 +1423,8 @@
         <mxCell id="k0ocds7Hu1w-iUrXvpMC-132" value="&lt;h1&gt;OP Priority&lt;/h1&gt;&lt;p&gt;There shouldn&#39;t really be a problem here, but basically RUN has priority over all, followed by index.&lt;/p&gt;" style="text;html=1;strokeColor=none;fillColor=none;spacing=5;spacingTop=-20;whiteSpace=wrap;overflow=hidden;rounded=0;" vertex="1" parent="1">
           <mxGeometry x="1800" y="1760" width="280" height="170" as="geometry" />
         </mxCell>
-        <mxCell id="k0ocds7Hu1w-iUrXvpMC-133" value="&lt;h1&gt;Accelerator Interface&lt;/h1&gt;&lt;p&gt;Physical interface is a 6502 native interface with 8 bit data, 4(?) bit address, and chip select.&lt;/p&gt;&lt;p&gt;The accelerator will have a configuration/size register, and a port for r, g, b, and a. The pixel registers are read write. The config/size register is write only, and the status/count register is read only.&lt;/p&gt;&lt;p&gt;inputs are latched when a is written, and outputs are acknowledged when a is read.&lt;/p&gt;" style="text;html=1;strokeColor=none;fillColor=none;spacing=5;spacingTop=-20;whiteSpace=wrap;overflow=hidden;rounded=0;" vertex="1" parent="1">
-          <mxGeometry x="1240" y="360" width="320" height="170" as="geometry" />
+        <mxCell id="k0ocds7Hu1w-iUrXvpMC-133" value="&lt;h1&gt;Accelerator Interface&lt;/h1&gt;&lt;p&gt;Physical interface is a 6502 native interface with 8 bit data, 4(?) bit address, and chip select.&lt;/p&gt;&lt;p&gt;The accelerator will have a configuration/size register, and a port for r, g, b, and a. The pixel registers are read write. The config/size register is write only, and the status/count register is read only.&lt;/p&gt;&lt;p&gt;inputs are latched when r is written, and outputs are acknowledged when r is read.&lt;/p&gt;" style="text;html=1;strokeColor=none;fillColor=none;spacing=5;spacingTop=-20;whiteSpace=wrap;overflow=hidden;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1240" y="360" width="320" height="200" as="geometry" />
         </mxCell>
         <mxCell id="k0ocds7Hu1w-iUrXvpMC-135" value="Also if px = px_end" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
           <mxGeometry x="1470" y="920" width="60" height="30" as="geometry" />

@@ -23,10 +23,10 @@ logic r_flag, w_flag;
 typedef enum logic [1:0] {IDLE, RUN, READ, WRITE} state_t;
 state_t state, next_state;
 
-assign px.r = input_data[0];
-assign px.g = input_data[1];
-assign px.b = input_data[2];
-assign px.a = input_data[3];
+assign px.r = input_data[3];
+assign px.g = input_data[2];
+assign px.b = input_data[1];
+assign px.a = input_data[0];
 
 assign size[0*8 +: 8] = input_data[4];
 assign size[1*8 +: 8] = input_data[5];
