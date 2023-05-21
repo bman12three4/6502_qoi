@@ -7,3 +7,6 @@ lists/
 *.png
 *.qoi
 *.vcd
+
+*.bkp
+*.dtmp

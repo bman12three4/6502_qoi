@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #include "qoi.h"
+#include "stream_qoi.h"
 
 #define STR_ENDS_WITH(S, E) (strcmp(S + strlen(S) - (sizeof(E)-1), E) == 0)
 
@@ -40,7 +41,7 @@ int main(int argc, char **argv) {
 	}
 	else if (STR_ENDS_WITH(argv[1], ".qoi")) {
 		printf("Opening a QOI file\n");
-		pixels = qoi_read(argv[1], &desc, 0);
+		pixels = s_qoi_read(argv[1], &desc, 0);
 		channels = desc.channels;
 		w = desc.width;
 		h = desc.height;
@@ -65,7 +66,7 @@ int main(int argc, char **argv) {
 		desc.height = h;
 		desc.channels = channels;
 		desc.colorspace = QOI_SRGB;
-		encoded = qoi_write(argv[2], pixels, &desc);
+		encoded = s_qoi_write(argv[2], pixels, &desc);
 	}
 
 	if (!encoded) {

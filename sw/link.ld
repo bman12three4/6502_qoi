@@ -1,8 +1,8 @@
 MEMORY
 {
   ZP:  start = $0,    size = $100,  type = rw, define = yes;
-  RAM: start = $200, size = $CE00, type = rw, define = yes;
-  ROM: start = $D000, size = $3000, type = rw, define = yes, file = %O;
+  RAM: start = $200, size = $BE00, type = rw, define = yes;
+  ROM: start = $C000, size = $4000, type = rw, define = yes, file = %O;
 }
 
 SEGMENTS {
