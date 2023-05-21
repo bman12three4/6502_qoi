@@ -12,4 +12,6 @@ typedef logic [2:0] addr_t;
 
 typedef logic [29:0] size_t;
 
+typedef logic [5:0] index_t;
+
 endpackage : qoi_types

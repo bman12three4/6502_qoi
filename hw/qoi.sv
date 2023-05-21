@@ -15,10 +15,26 @@ import qoi_types::*;
 byte_t input_data[8];
 byte_t output_data[8];
 
+index_t index;
+pixel_t index_arr[64];
+
 size_t size;
 size_t count;
 pixel_t px, prev_px;
 logic r_flag, w_flag;
+
+logic [5:0] run, next_run;
+
+logic signed [8:0] vr, vg, vb;
+logic signed [8:0] vg_r, vg_b;
+
+logic index_op;
+logic run_op;
+logic run_match;
+logic rgba_op;
+logic diff_op;
+logic luma_op;
+logic rgb_op;
 
 typedef enum logic [1:0] {IDLE, RUN, READ, WRITE} state_t;
 state_t state, next_state;
@@ -47,6 +63,13 @@ assign output_data[7][7] = r_flag;
 
 assign data_o = output_data[addr];
 
+assign vr = px.r - prev_px.r;
+assign vg = px.g - prev_px.g;
+assign vb = px.b - prev_px.b;
+
+assign vg_r = vr - vg;
+assign vg_b = vb - vg;
+
 always_comb begin
     if (cs) begin
         $display("QOI addr: %x", addr);
@@ -66,6 +89,8 @@ always_comb begin
     r_flag = '0;
     w_flag = '0;
 
+    run_match = '0;
+
     case (state)
         IDLE: begin
             if (start) begin
@@ -74,11 +99,47 @@ always_comb begin
         end
 
         RUN: begin
+            index = px.r * 3 + px.g * 5 + px.b * 7 + px.a * 11;
+            index_op = px == index_arr[index];
+            rgba_op = px.a != prev_px.a;
 
+            if (px == prev_px) begin
+                if (run == 62 || size == count) begin
+                    next_run = 0;
+                    run_op = 1;
+                end else begin
+                    run_match = 1;
+                    next_run = run + 1;
+                end
+            end else begin
+                run_op = (run > 0);
+                next_run = 0;
+            end
+
+            diff_op = (
+                vr > -3 && vr < 2 &&
+                vg > -3 && vg < 2 &&
+                vb > -3 && vb < 2
+            );
+
+            luma_op = (
+                vg_r >  -9 && vg_r <  8 &&
+                vg   > -33 && vg   < 32 &&
+                vg_b >  -9 && vg_b <  8
+            );
+
+            rgb_op = ~(diff_op | luma_op | index_op | rgba_op);
+
+            if (!run_match) begin
+                next_state = WRITE;
+            end
         end
 
         READ: begin
             r_flag = '1;
+            if (we && cs && addr == 3'h3) begin
+                next_state = RUN;
+            end
         end
 
         WRITE: begin
@@ -91,6 +152,11 @@ always_ff @(posedge clk) begin
     if (rst) begin
         state <= IDLE;
         count <= '0;
+        run <= '0;
+        for (int i = 0; i < 64; i++) begin
+            index_arr[i] <= '0;
+        end
+        prev_px <= '0;
     end else begin
         state <= next_state;
     end

@@ -16,9 +16,11 @@ qoi_desc desc;
 int main(void)
 {
 	uint32_t size;
+	int p;
 	char i;
 
 	size = 4096L;
+	p = 0;
 
 	desc.width = 32;
 	desc.height = 32;
@@ -34,7 +36,7 @@ int main(void)
 	while(!(accel[7] | ~QOI_READ_FLAG));
 	
 	for (i = 0; i < 4; i++) {
-		accel[i] = img[3-i]; //img order is a b g r
+		accel[i] = img[i]; //img order is a b g r
 	}
 
 	return 0;

@@ -1,4 +1,4 @@
-<mxfile host="Electron" modified="2023-05-21T15:55:29.505Z" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/21.2.8 Chrome/112.0.5615.165 Electron/24.2.0 Safari/537.36" etag="D8TFoqg0oYTG9kupZbq0" version="21.2.8" type="device" pages="2">
+<mxfile host="Electron" modified="2023-05-21T16:51:46.156Z" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/21.2.8 Chrome/112.0.5615.165 Electron/24.2.0 Safari/537.36" etag="Nj4xC3Y-gXCmsuOJnrwG" version="21.2.8" type="device" pages="2">
   <diagram name="SW Model" id="4ojXQKdvb_Xtseve3jii">
     <mxGraphModel dx="479" dy="329" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
@@ -606,7 +606,7 @@
     </mxGraphModel>
   </diagram>
   <diagram id="ENQX3MSQVS8w3ruXSV3Q" name="HW Model">
-    <mxGraphModel dx="465" dy="319" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="547" dy="375" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -1384,12 +1384,6 @@
         <mxCell id="k0ocds7Hu1w-iUrXvpMC-115" value="NOR" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;" vertex="1" parent="1">
           <mxGeometry x="1880" y="1520" width="80" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="k0ocds7Hu1w-iUrXvpMC-121" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="k0ocds7Hu1w-iUrXvpMC-116" target="k0ocds7Hu1w-iUrXvpMC-115">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="k0ocds7Hu1w-iUrXvpMC-116" value="OP_RUN" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
-          <mxGeometry x="1800" y="1440" width="60" height="40" as="geometry" />
-        </mxCell>
         <mxCell id="k0ocds7Hu1w-iUrXvpMC-126" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="k0ocds7Hu1w-iUrXvpMC-117" target="k0ocds7Hu1w-iUrXvpMC-115">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
@@ -1414,7 +1408,7 @@
         <mxCell id="k0ocds7Hu1w-iUrXvpMC-120" value="OP_LUMA" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="1800" y="1540" width="60" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="k0ocds7Hu1w-iUrXvpMC-127" value="OP_RGBA" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+        <mxCell id="k0ocds7Hu1w-iUrXvpMC-127" value="OP_RGB" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="2000" y="1540" width="60" height="40" as="geometry" />
         </mxCell>
         <mxCell id="k0ocds7Hu1w-iUrXvpMC-129" value="&lt;h1&gt;RGB&lt;/h1&gt;&lt;p&gt;If no other op matches, then do an RGB&lt;/p&gt;" style="text;html=1;strokeColor=none;fillColor=none;spacing=5;spacingTop=-20;whiteSpace=wrap;overflow=hidden;rounded=0;" vertex="1" parent="1">
@@ -1506,6 +1500,9 @@
             <mxPoint x="1940" y="659.74" as="sourcePoint" />
             <mxPoint x="2020" y="659.74" as="targetPoint" />
           </mxGeometry>
+        </mxCell>
+        <mxCell id="k0ocds7Hu1w-iUrXvpMC-153" value="only output op if run &amp;gt; 0" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1320" y="960" width="60" height="30" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
