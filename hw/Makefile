@@ -1,6 +1,7 @@
 IVERILOG=iverilog
 IVERILOG_ARGS=-g2012
-SRCS=ALU.v cpu_65c02.v
+PKGS=qoi_types.sv
+SRCS=qoi.sv ALU.v cpu_65c02.v
 TB=tb.sv
 TOP=tb
 NAME=simv
@@ -8,13 +9,13 @@ NAME=simv
 all: exe
 
 exe:
-	$(IVERILOG) $(SRCS) $(TB) -s $(TOP) $(IVERILOG_ARGS) -o $(NAME)
+	$(IVERILOG) $(PKGS) $(SRCS) $(TB) -s $(TOP) $(IVERILOG_ARGS) -o $(NAME)
 
 run: exe
 	./$(NAME)
 
 exe_waves:
-	$(IVERILOG) $(SRCS) $(TB) -s $(TOP) $(IVERILOG_ARGS) -o $(NAME) -DWAVES
+	$(IVERILOG) $(PKGS) $(SRCS) $(TB) -s $(TOP) $(IVERILOG_ARGS) -o $(NAME) -DWAVES
 
 waves: exe_waves
 	./$(NAME)
