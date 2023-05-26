@@ -15,13 +15,16 @@ import qoi_types::*;
 byte_t input_data[8];
 byte_t output_data[8];
 
+byte_t encoded_data;
+
 index_t index;
 pixel_t index_arr[64];
 
 size_t size;
 size_t count;
-pixel_t px, prev_px;
+pixel_t next_px, px, prev_px;
 logic r_flag, w_flag;
+logic working;
 
 logic [5:0] run, next_run;
 
@@ -36,21 +39,29 @@ logic diff_op;
 logic luma_op;
 logic rgb_op;
 
+op_t op;
+
+assign op[0] = rgb_op;
+assign op[1] = rgba_op;
+assign op[2] = index_op;
+assign op[3] = diff_op;
+assign op[4] = luma_op;
+assign op[5] = run_op;
+
+logic last_write, next_last_write;
+
+logic [2:0] read_count, next_read_count;
+
 typedef enum logic [1:0] {IDLE, RUN, READ, WRITE} state_t;
 state_t state, next_state;
-
-assign px.r = input_data[3];
-assign px.g = input_data[2];
-assign px.b = input_data[1];
-assign px.a = input_data[0];
 
 assign size[0*8 +: 8] = input_data[4];
 assign size[1*8 +: 8] = input_data[5];
 assign size[2*8 +: 8] = input_data[6];
 assign size[3*8 +: 6] = input_data[7][5:0];
 
-assign mode = input_data[7][6];
-assign start = input_data[7][7];
+assign mode = input_data[3][6];
+assign start = input_data[3][7];
 
 assign output_data[4] = count[0*8 +: 8];
 assign output_data[5] = count[1*8 +: 8];
@@ -58,8 +69,13 @@ assign output_data[6] = count[2*8 +: 8];
 assign output_data[7][5:0] = count[3*8 +: 6];
 
 
-assign output_data[7][6] = w_flag;
-assign output_data[7][7] = r_flag;
+assign output_data[3][7] = working;
+assign output_data[3][6:4] = '0;
+assign output_data[3][3:2] = read_count;
+assign output_data[3][1] = w_flag;
+assign output_data[3][0] = r_flag;
+
+assign output_data[0] = encoded_data;
 
 assign data_o = output_data[addr];
 
@@ -86,6 +102,8 @@ end
 
 always_comb begin
     next_state = state;
+    next_read_count = read_count;
+    working = 0;
     r_flag = '0;
     w_flag = '0;
 
@@ -131,19 +149,52 @@ always_comb begin
             rgb_op = ~(diff_op | luma_op | index_op | rgba_op);
 
             if (!run_match) begin
+                next_read_count = '0;
                 next_state = WRITE;
             end
         end
 
         READ: begin
             r_flag = '1;
-            if (we && cs && addr == 3'h3) begin
-                next_state = RUN;
+            next_px = px;
+            if (we && cs) begin
+                next_read_count = read_count + 1;
+                if (read_count == 2'h3) begin
+                    next_state = RUN;
+                end
+                next_px[8*read_count +: 8] = data_i;
             end
         end
 
         WRITE: begin
+            next_last_write = last_write;
             w_flag = '1;
+
+            if (~we & cs & addr == '0) begin
+                next_read_count = read_count + 1;
+                if (last_write) begin
+                    next_state = READ;
+                end
+            end
+
+            case (op)
+            OP_RGB: begin
+                $display("In RGB write case");
+            end
+
+            OP_RGBA: begin
+                case (read_count)
+                    0: encoded_data = 8'hff;
+                    1: encoded_data = px.r;
+                    2: encoded_data = px.g;
+                    3: encoded_data = px.b;
+                    4: begin
+                        encoded_data = px.a;
+                        next_last_write = 1;
+                    end
+                endcase
+            end
+            endcase
         end
     endcase
 end
@@ -152,13 +203,18 @@ always_ff @(posedge clk) begin
     if (rst) begin
         state <= IDLE;
         count <= '0;
+        read_count <= '0;
         run <= '0;
+        last_write <= '0;
         for (int i = 0; i < 64; i++) begin
             index_arr[i] <= '0;
         end
         prev_px <= '0;
     end else begin
         state <= next_state;
+        px <= next_px;
+        read_count <= next_read_count;
+        last_write <= next_last_write;
     end
 end
 

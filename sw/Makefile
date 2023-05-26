@@ -1,5 +1,5 @@
 CC=cl65
-CFLAGS=-T -t none -I . --cpu "65C02"
+CFLAGS=-T -t none -I . --cpu "65C02" -O
 LDFLAGS=-C link.ld -m $(NAME).map
 
 NAME=qoi_sim
