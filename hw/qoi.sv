@@ -187,6 +187,16 @@ always_comb begin
                         next_last_write = 1;
                     end
                 endcase
+            end else if (op[OP_RGB]) begin
+                case (read_count)
+                    0: encoded_data = 8'hfe;
+                    1: encoded_data = px.r;
+                    2: encoded_data = px.g;
+                    3: begin
+                        encoded_data = px.b;
+                        next_last_write = 1;
+                    end
+                endcase
             end else begin
                 if (cs && addr == '0) $error("Undefined op: %x", op);
             end
