@@ -112,7 +112,6 @@ always_comb begin
         end
 
         RUN: begin
-            next_prev_px = px;
             index = px.r * 3 + px.g * 5 + px.b * 7 + px.a * 11;
             index_op = px == index_arr[index];
             rgba_op = px.a != prev_px.a;
@@ -144,7 +143,10 @@ always_comb begin
 
             rgb_op = ~(diff_op | luma_op | index_op | rgba_op);
 
-            if (!run_match) begin
+            if (run_match) begin
+                next_run = run + 1;
+                next_state = READ;
+            end else begin
                 next_read_count = '0;
                 next_state = WRITE;
                 next_last_write = '0;
@@ -170,6 +172,7 @@ always_comb begin
             if (~we & cs & addr == '0) begin
                 next_read_count = read_count + 1;
                 if (last_write) begin
+                    next_prev_px = px;
                     next_read_count = '0;
                     next_state = READ;
                 end
@@ -187,7 +190,21 @@ always_comb begin
                         next_last_write = 1;
                     end
                 endcase
+            end else if (op[OP_DIFF]) begin
+                if (cs && addr == '0) $display("In DIFF write case %d", read_count);
+                encoded_data = 8'h40 | (vr + 2) << 4 | (vg + 2) << 2 | (vb + 2);
+                next_last_write = 1;
+            end else if (op[OP_LUMA]) begin
+                if (cs && addr == '0) $display("In DIFF write case %d", read_count);
+                case (read_count)
+                    0: encoded_data = 8'h80 | (vg + 32);
+                    1: begin
+                        encoded_data = (vg_r + 8) << 4 | (vg_b +  8);
+                        next_last_write = 1;
+                    end
+                endcase 
             end else if (op[OP_RGB]) begin
+                if (cs && addr == '0) $display("In RGB write case %d", read_count);
                 case (read_count)
                     0: encoded_data = 8'hfe;
                     1: encoded_data = px.r;
@@ -197,6 +214,7 @@ always_comb begin
                         next_last_write = 1;
                     end
                 endcase
+
             end else begin
                 if (cs && addr == '0) $error("Undefined op: %x", op);
             end
@@ -219,6 +237,7 @@ always_ff @(posedge clk) begin
         state <= next_state;
         px <= next_px;
         prev_px <= next_prev_px;
+        index_arr[index] <= next_prev_px;
         read_count <= next_read_count;
         last_write <= next_last_write;
     end
