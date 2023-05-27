@@ -22,7 +22,7 @@ pixel_t index_arr[64];
 
 size_t size;
 size_t count;
-pixel_t next_px, px, prev_px;
+pixel_t next_px, px, next_prev_px, prev_px;
 logic r_flag, w_flag;
 logic working;
 
@@ -41,12 +41,12 @@ logic rgb_op;
 
 op_t op;
 
-assign op[0] = rgb_op;
-assign op[1] = rgba_op;
-assign op[2] = index_op;
-assign op[3] = diff_op;
-assign op[4] = luma_op;
-assign op[5] = run_op;
+assign op[OP_RGB] = rgb_op;
+assign op[OP_RGBA] = rgba_op;
+assign op[OP_INDEX] = index_op;
+assign op[OP_DIFF] = diff_op;
+assign op[OP_LUMA] = luma_op;
+assign op[OP_RUN] = run_op;
 
 logic last_write, next_last_write;
 
@@ -86,12 +86,6 @@ assign vb = px.b - prev_px.b;
 assign vg_r = vr - vg;
 assign vg_b = vb - vg;
 
-always_comb begin
-    if (cs) begin
-        $display("QOI addr: %x", addr);
-    end
-end
-
 always_ff @(posedge clk) begin
     if (cs) begin
         if (we) begin
@@ -103,6 +97,7 @@ end
 always_comb begin
     next_state = state;
     next_read_count = read_count;
+    next_prev_px = prev_px;
     working = 0;
     r_flag = '0;
     w_flag = '0;
@@ -117,6 +112,7 @@ always_comb begin
         end
 
         RUN: begin
+            next_prev_px = px;
             index = px.r * 3 + px.g * 5 + px.b * 7 + px.a * 11;
             index_op = px == index_arr[index];
             rgba_op = px.a != prev_px.a;
@@ -151,6 +147,7 @@ always_comb begin
             if (!run_match) begin
                 next_read_count = '0;
                 next_state = WRITE;
+                next_last_write = '0;
             end
         end
 
@@ -173,16 +170,13 @@ always_comb begin
             if (~we & cs & addr == '0) begin
                 next_read_count = read_count + 1;
                 if (last_write) begin
+                    next_read_count = '0;
                     next_state = READ;
                 end
             end
 
-            case (op)
-            OP_RGB: begin
-                $display("In RGB write case");
-            end
-
-            OP_RGBA: begin
+            if (op[OP_RGBA]) begin
+                if (cs && addr == '0) $display("In RGBA write case %d", read_count);
                 case (read_count)
                     0: encoded_data = 8'hff;
                     1: encoded_data = px.r;
@@ -193,8 +187,9 @@ always_comb begin
                         next_last_write = 1;
                     end
                 endcase
+            end else begin
+                if (cs && addr == '0) $error("Undefined op: %x", op);
             end
-            endcase
         end
     endcase
 end
@@ -213,6 +208,7 @@ always_ff @(posedge clk) begin
     end else begin
         state <= next_state;
         px <= next_px;
+        prev_px <= next_prev_px;
         read_count <= next_read_count;
         last_write <= next_last_write;
     end

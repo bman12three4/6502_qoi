@@ -14,14 +14,7 @@ typedef logic [29:0] size_t;
 
 typedef logic [5:0] index_t;
 
-typedef enum logic [5:0] {
-    OP_RGB = 1 << 0,
-    OP_RGBA = 1 << 1,
-    OP_INDEX = 1 << 2,
-    OP_DIFF = 1 << 3,
-    OP_LUMA = 1 << 4,
-    OP_RUN = 1 << 5
-} op_t;
+typedef enum logic [5:0] {OP_RGB, OP_RGBA, OP_INDEX, OP_DIFF, OP_LUMA, OP_RUN } op_t;
 
 `define QOI_OP_RGB	 8'hfe
 `define QOI_OP_RGBA	 8'hff
