@@ -177,8 +177,13 @@ always_comb begin
                     next_state = READ;
                 end
             end
-
-            if (op[OP_RGBA]) begin
+            
+            
+            if (op[OP_INDEX]) begin
+                if (cs && addr == '0) $display("In INDEX write case %d", read_count);
+                encoded_data = 8'h00 | index;
+                next_last_write = 1;
+            end else if (op[OP_RGBA]) begin
                 if (cs && addr == '0) $display("In RGBA write case %d", read_count);
                 case (read_count)
                     0: encoded_data = 8'hff;
