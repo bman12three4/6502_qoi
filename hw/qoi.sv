@@ -132,13 +132,15 @@ always_comb begin
             diff_op = (
                 vr > -3 && vr < 2 &&
                 vg > -3 && vg < 2 &&
-                vb > -3 && vb < 2
+                vb > -3 && vb < 2 &&
+                px.a !== prev_px.a
             );
 
             luma_op = (
                 vg_r >  -9 && vg_r <  8 &&
                 vg   > -33 && vg   < 32 &&
-                vg_b >  -9 && vg_b <  8
+                vg_b >  -9 && vg_b <  8 &&
+                px.a !== prev_px.a
             );
 
             rgb_op = ~(diff_op | luma_op | index_op | rgba_op);
