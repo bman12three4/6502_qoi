@@ -26,7 +26,7 @@ pixel_t next_px, px, next_prev_px, prev_px;
 logic r_flag, w_flag;
 logic working;
 
-logic [5:0] run, next_run;
+logic [5:0] run, next_run, run_r, next_run_r;
 
 logic signed [8:0] vr, vg, vb;
 logic signed [8:0] vg_r, vg_b;
@@ -39,7 +39,7 @@ logic diff_op;
 logic luma_op;
 logic rgb_op;
 
-op_t op;
+op_t op, op_r, next_op;
 
 assign op[OP_RGB] = rgb_op;
 assign op[OP_RGBA] = rgba_op;
@@ -103,6 +103,9 @@ always_comb begin
     w_flag = '0;
 
     run_match = '0;
+    next_run_r = run_r;
+
+    next_op = op_r;
 
     case (state)
         IDLE: begin
@@ -123,6 +126,7 @@ always_comb begin
                 end else begin
                     run_match = 1;
                     next_run = run + 1;
+                    next_run_r = next_run;
                 end
             end else begin
                 run_op = (run > 0);
@@ -133,26 +137,29 @@ always_comb begin
                 vr > -3 && vr < 2 &&
                 vg > -3 && vg < 2 &&
                 vb > -3 && vb < 2 &&
-                px.a !== prev_px.a
+                px.a == prev_px.a
             );
 
             luma_op = (
                 vg_r >  -9 && vg_r <  8 &&
                 vg   > -33 && vg   < 32 &&
                 vg_b >  -9 && vg_b <  8 &&
-                px.a !== prev_px.a
+                px.a == prev_px.a
             );
 
             rgb_op = ~(diff_op | luma_op | index_op | rgba_op);
 
             if (run_match) begin
                 next_run = run + 1;
+                next_read_count = '0;
                 next_state = READ;
             end else begin
                 next_read_count = '0;
                 next_state = WRITE;
                 next_last_write = '0;
             end
+
+            next_op = op;
         end
 
         READ: begin
@@ -173,19 +180,25 @@ always_comb begin
 
             if (~we & cs & addr == '0) begin
                 next_read_count = read_count + 1;
+                if (op_r[OP_RUN]) begin
+                    next_op[OP_RUN] = '0;
+                end
                 if (last_write) begin
                     next_prev_px = px;
                     next_read_count = '0;
                     next_state = READ;
                 end
             end
-            
-            
-            if (op[OP_INDEX]) begin
+
+            if (op_r[OP_RUN]) begin
+                if (cs && addr == '0) $display("In RUN write case %d", read_count);
+                encoded_data = 8'hc0 | (run_r - 1);
+                next_read_count = '0;
+            end else if (op_r[OP_INDEX]) begin
                 if (cs && addr == '0) $display("In INDEX write case %d", read_count);
                 encoded_data = 8'h00 | index;
                 next_last_write = 1;
-            end else if (op[OP_RGBA]) begin
+            end else if (op_r[OP_RGBA]) begin
                 if (cs && addr == '0) $display("In RGBA write case %d", read_count);
                 case (read_count)
                     0: encoded_data = 8'hff;
@@ -197,11 +210,11 @@ always_comb begin
                         next_last_write = 1;
                     end
                 endcase
-            end else if (op[OP_DIFF]) begin
+            end else if (op_r[OP_DIFF]) begin
                 if (cs && addr == '0) $display("In DIFF write case %d", read_count);
                 encoded_data = 8'h40 | (vr + 2) << 4 | (vg + 2) << 2 | (vb + 2);
                 next_last_write = 1;
-            end else if (op[OP_LUMA]) begin
+            end else if (op_r[OP_LUMA]) begin
                 if (cs && addr == '0) $display("In DIFF write case %d", read_count);
                 case (read_count)
                     0: encoded_data = 8'h80 | (vg + 32);
@@ -210,7 +223,7 @@ always_comb begin
                         next_last_write = 1;
                     end
                 endcase 
-            end else if (op[OP_RGB]) begin
+            end else if (op_r[OP_RGB]) begin
                 if (cs && addr == '0) $display("In RGB write case %d", read_count);
                 case (read_count)
                     0: encoded_data = 8'hfe;
@@ -247,6 +260,9 @@ always_ff @(posedge clk) begin
         index_arr[index] <= next_prev_px;
         read_count <= next_read_count;
         last_write <= next_last_write;
+        run <= next_run;
+        run_r <= next_run_r;
+        op_r <= next_op;
     end
 end
 

@@ -50,7 +50,7 @@ int main(void)
 
 	accel[3] = QOI_START | QOI_ENCODE;
 
-	while(d < 512) {
+	while(d < 4096) {
 		status = accel[3];
 		if (status & QOI_READ_FLAG) {
 			accel[0] = img[s++];
