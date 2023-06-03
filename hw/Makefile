@@ -19,7 +19,7 @@ exe_waves:
 
 waves: exe_waves
 	./$(NAME)
-	gtkwave tb.vcd &
+	gtkwave -o tb.vcd &
 
 clean:
 	rm -rf *.vcd
