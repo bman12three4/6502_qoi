@@ -21,7 +21,7 @@ index_t index;
 pixel_t index_arr[64];
 
 size_t size;
-size_t count;
+size_t count, next_count;
 pixel_t next_px, px, next_prev_px, prev_px;
 logic r_flag, w_flag;
 logic working;
@@ -97,6 +97,7 @@ end
 always_comb begin
     next_state = state;
     next_read_count = read_count;
+    next_count = count;
     next_prev_px = prev_px;
     working = 0;
     r_flag = '0;
@@ -119,7 +120,7 @@ always_comb begin
             index_op = px == index_arr[index];
             rgba_op = px.a != prev_px.a;
 
-            if (px == prev_px) begin
+            if (px == prev_px && count > 0) begin
                 if (run == 62 || size == count) begin
                     next_run = 0;
                     run_op = 1;
@@ -186,6 +187,7 @@ always_comb begin
                 if (last_write) begin
                     next_prev_px = px;
                     next_read_count = '0;
+                    next_count = count + 1;
                     next_state = READ;
                 end
             end
@@ -263,6 +265,7 @@ always_ff @(posedge clk) begin
         run <= next_run;
         run_r <= next_run_r;
         op_r <= next_op;
+        count <= next_count;
     end
 end
 
