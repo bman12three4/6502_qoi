@@ -116,7 +116,7 @@ always_comb begin
 
     case (state)
         IDLE: begin
-            if (start) begin
+            if (cs && we && addr == 3 && data_i[7]) begin
                 next_state = READ;
             end
         end
@@ -211,6 +211,9 @@ always_comb begin
                     next_prev_px = px;
                     next_read_count = '0;
                     next_state = READ;
+                end
+                if (count == size - 1) begin
+                    next_state = IDLE;
                 end
             end
 
