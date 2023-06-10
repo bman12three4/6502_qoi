@@ -19,9 +19,11 @@ byte_t encoded_data;
 
 index_t index;
 pixel_t index_arr[64];
+pixel_t index_val, next_index_val;
 
 size_t size;
 size_t count, next_count;
+logic is_first, next_is_first;
 pixel_t next_px, px, next_prev_px, prev_px;
 logic r_flag, w_flag;
 logic working;
@@ -77,7 +79,7 @@ assign output_data[3][0] = r_flag;
 
 assign output_data[0] = encoded_data;
 
-assign data_o = output_data[addr];
+assign data_o = cs ? output_data[addr] : 'z;
 
 assign vr = px.r - prev_px.r;
 assign vg = px.g - prev_px.g;
@@ -104,9 +106,13 @@ always_comb begin
     w_flag = '0;
 
     run_match = '0;
+    next_run = run;
     next_run_r = run_r;
 
     next_op = op_r;
+
+    index_val = index_arr[index];
+    next_index_val = index_val;
 
     case (state)
         IDLE: begin
@@ -116,22 +122,35 @@ always_comb begin
         end
 
         RUN: begin
+            next_is_first = '0;
+
             index = px.r * 3 + px.g * 5 + px.b * 7 + px.a * 11;
-            index_op = px == index_arr[index];
+            index_op = px == index_val;
+
             rgba_op = px.a != prev_px.a;
 
-            if (px == prev_px && count > 0) begin
-                if (run == 62 || size == count) begin
+            // Try to clean this up, does it really need 3 if statements?
+            if (px == prev_px && !is_first) begin
+                run_match = 1;
+                if (run == 62) begin
                     next_run = 0;
                     run_op = 1;
+                end else if (count == size - 1) begin
+                    run_op = 1;
+                    next_run = run + 1;
+                    next_run_r = next_run;
                 end else begin
-                    run_match = 1;
+                    run_op = 0;
                     next_run = run + 1;
                     next_run_r = next_run;
                 end
             end else begin
                 run_op = (run > 0);
                 next_run = 0;
+            end
+
+            if (!run_op && ~index_op) begin
+                next_index_val = px;
             end
 
             diff_op = (
@@ -150,7 +169,7 @@ always_comb begin
 
             rgb_op = ~(diff_op | luma_op | index_op | rgba_op);
 
-            if (run_match) begin
+            if (run_match && !run_op) begin
                 next_run = run + 1;
                 next_read_count = '0;
                 next_state = READ;
@@ -158,6 +177,10 @@ always_comb begin
                 next_read_count = '0;
                 next_state = WRITE;
                 next_last_write = '0;
+            end
+
+            if (!run_op) begin
+                next_count = count + 1;
             end
 
             next_op = op;
@@ -182,12 +205,11 @@ always_comb begin
             if (~we & cs & addr == '0) begin
                 next_read_count = read_count + 1;
                 if (op_r[OP_RUN]) begin
-                    next_op[OP_RUN] = '0;
+                    next_state = RUN;
                 end
                 if (last_write) begin
                     next_prev_px = px;
                     next_read_count = '0;
-                    next_count = count + 1;
                     next_state = READ;
                 end
             end
@@ -195,7 +217,6 @@ always_comb begin
             if (op_r[OP_RUN]) begin
                 if (cs && addr == '0) $display("In RUN write case %d", read_count);
                 encoded_data = 8'hc0 | (run_r - 1);
-                next_read_count = '0;
             end else if (op_r[OP_INDEX]) begin
                 if (cs && addr == '0) $display("In INDEX write case %d", read_count);
                 encoded_data = 8'h00 | index;
@@ -255,17 +276,19 @@ always_ff @(posedge clk) begin
             index_arr[i] <= '0;
         end
         prev_px <= '0;
+        is_first <= '1;
     end else begin
         state <= next_state;
         px <= next_px;
         prev_px <= next_prev_px;
-        index_arr[index] <= next_prev_px;
+        index_arr[index] <= next_index_val;
         read_count <= next_read_count;
         last_write <= next_last_write;
         run <= next_run;
         run_r <= next_run_r;
         op_r <= next_op;
         count <= next_count;
+        is_first <= next_is_first;
     end
 end
 

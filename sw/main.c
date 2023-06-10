@@ -11,6 +11,8 @@ unsigned char* qoi = (unsigned char*)0x9000;
 unsigned char* img = (unsigned char*)0x8000;
 unsigned char* accel = (unsigned char*)0xa000;
 
+static const unsigned char qoi_padding[8] = {0,0,0,0,0,0,0,1};
+
 qoi_desc desc;
 
 uint8_t status;
@@ -29,7 +31,6 @@ int main(void)
 	uint32_t s, d;
 	char i;
 
-	size = 4096L;
 	d = 0;
 	s = 0;
 
@@ -37,6 +38,8 @@ int main(void)
 	desc.height = 32;
 	desc.channels = 4;
 	desc.colorspace = QOI_SRGB;
+
+	size = desc.width * desc.height;
 
 	qoi_write_32(qoi, &d, QOI_MAGIC);
 	qoi_write_32(qoi, &d, desc.width);
@@ -57,6 +60,16 @@ int main(void)
 		} else if (status & QOI_WRITE_FLAG) {
 			qoi[d++] = accel[0];
 		}
+	}
+
+	// Grab last byte if there is any
+	// this needs to be handled better in the accelerator
+	if (accel[3] & QOI_WRITE_FLAG) {
+		qoi[d++] = accel[0];
+	}
+
+	for (i = 0; i < (int)sizeof(qoi_padding); i++) {
+		qoi[d++] = qoi_padding[i];
 	}
 
 	return 0;
