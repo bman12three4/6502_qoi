@@ -4,12 +4,42 @@ import qoi_types::*;
     input clk,
     input rst,
     input cs,
+    input mem_cs,
     input we,
 
     input byte_t data_i,
     output byte_t data_o,
 
     input addr_t addr
+);
+
+addr_t accel_addr;
+byte_t accel_data_o, accel_data_i;
+byte_t mem_data_o;
+logic accel_cs, accel_we;
+
+logic mem_sel;
+
+logic mem_flag;
+
+memory_unit u_memory_unit(
+    .clk(clk),
+    .rst(rst),
+
+    .addr_a(addr),
+    .data_a_i(data_i),
+    .data_a_o(mem_data_o),
+    .cs_a(mem_cs),
+    .we_a(we),
+
+    .addr_b(accel_addr),
+    .data_b_i(accel_data_o),
+    .cs_b(accel_cs),
+    .we_b(accel_we),
+
+    .sel(mem_sel),
+
+    .flag(mem_flag)
 );
 
 byte_t input_data[8];
@@ -54,7 +84,7 @@ logic last_write, next_last_write;
 
 logic [2:0] read_count, next_read_count;
 
-typedef enum logic [1:0] {IDLE, RUN, READ, WRITE} state_t;
+typedef enum logic [2:0] {IDLE, RUN, READ_CPU, READ, WRITE} state_t;
 state_t state, next_state;
 
 assign size[0*8 +: 8] = input_data[4];
@@ -79,7 +109,7 @@ assign output_data[3][0] = r_flag;
 
 assign output_data[0] = encoded_data;
 
-assign data_o = cs ? output_data[addr] : 'z;
+assign data_o = cs ? output_data[addr] : mem_cs ? mem_data_o : 'z;
 
 assign vr = px.r - prev_px.r;
 assign vg = px.g - prev_px.g;
@@ -117,7 +147,17 @@ always_comb begin
     case (state)
         IDLE: begin
             if (cs && we && addr == 3 && data_i[7]) begin
-                next_state = READ;
+                next_state = READ_CPU;
+            end
+        end
+
+        READ_CPU: begin
+            mem_sel = 0;
+            r_flag = '1;
+
+
+            if (mem_flag) begin
+                next_state = IDLE;
             end
         end
 

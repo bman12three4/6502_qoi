@@ -19,10 +19,11 @@ qoi u_qoi(
 	.clk(clk),
 	.rst(reset),
 	.cs(qoi_cs),
+	.mem_cs(accel_mem_cs),
 	.we(WE),
 	.data_i(DO),
 	.data_o(accel_do),
-	.addr(AB[2:0])
+	.addr(AB[9:0])
 	);
 
 logic [7:0] ram [4096*8];
@@ -34,7 +35,8 @@ logic img_access, qoi_access;
 
 assign img_access = (AB >= 16'h8000 && AB < 16'h9000);
 assign qoi_access = (AB >= 16'h9000 && AB < 16'ha000);
-assign qoi_cs = (AB >= 16'ha000 && AB < 16'ha008);
+assign accel_mem_cs = (AB >= 16'ha000 && AB < 16'ha400);
+assign qoi_cs = (AB >= 16'ha400 && AB < 16'ha408);
 
 `ifdef WAVES
 initial begin
