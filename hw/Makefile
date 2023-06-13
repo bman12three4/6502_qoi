@@ -12,13 +12,13 @@ exe:
 	$(IVERILOG) $(PKGS) $(SRCS) $(TB) -s $(TOP) $(IVERILOG_ARGS) -o $(NAME)
 
 run: exe
-	./$(NAME)
+	./$(NAME) -lxt2
 
 exe_waves:
 	$(IVERILOG) $(PKGS) $(SRCS) $(TB) -s $(TOP) $(IVERILOG_ARGS) -o $(NAME) -DWAVES
 
 waves: exe_waves
-	./$(NAME)
+	./$(NAME) -lxt2
 	gtkwave -o tb.vcd &
 
 clean:
