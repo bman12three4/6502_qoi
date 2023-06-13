@@ -4,12 +4,33 @@ import qoi_types::*;
     input clk,
     input rst,
     input cs,
+    input mem_cs,
     input we,
 
     input byte_t data_i,
     output byte_t data_o,
 
     input addr_t addr
+);
+
+logic sel;
+
+addr_t rd_addr;
+addr_t wr_addr;
+byte_t rd_data;
+byte_t wr_data;
+
+logic rd_cs, wr_cs;
+
+ping_pong u_ping_pong (
+    .clk(clk),
+    .rst(rst),
+    .rd_addr(rd_addr),
+    .wr_addr(wr_addr),
+    .rd_data(rd_data),
+    .wr_data(wr_data),
+    .rd_cs(rd_cs),
+    .wr_cs(wr_cs)
 );
 
 byte_t input_data[8];
@@ -99,6 +120,7 @@ end
 always_comb begin
     next_state = state;
     next_read_count = read_count;
+    next_is_first = is_first;
     next_count = count;
     next_prev_px = prev_px;
     working = 0;
@@ -113,6 +135,18 @@ always_comb begin
 
     index_val = index_arr[index];
     next_index_val = index_val;
+
+    sel = 0;
+
+    if (mode == 0) begin
+        wr_addr = addr;
+        wr_data = data_i;
+        wr_cs = mem_cs;
+    end else if (mode == 1) begin
+        wr_addr = 'x;
+        wr_data = 'x;
+        wr_cs = 'x;
+    end
 
     case (state)
         IDLE: begin

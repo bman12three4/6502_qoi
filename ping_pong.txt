@@ -1,0 +1,35 @@
+Basically we need some sort of state machine to switch between the two buffers.
+This could be done in hardware or software, idealy in hardware though.
+
+Intended behavior: CPU will copy at most 1024 bytes at a time into a buffer. If
+less than 1024 bytes are written, this means that the cpu has finshed writing
+the image.
+
+The read flag will be raised when the buffer wants 1024 bytes, and will go down
+immediately once the writes start.
+
+So how do we know which buffer is which? The sel signal. Where does this signal
+come from though? It could be either an input or an output from the ping_pong
+driver. When sel needs to switch depends though, because it is always going to
+be a result of the read port reading all of the data. The sel input also
+determines who is the reader. 
+
+Could I just have it say that if the read_addr is 3ff, switch sel? that may
+work...
+
+One reason it might not be that easy is because the write port needs to know
+when to start again, it can't just wrap around once it reaches the end. But...
+since writes will always be a 1024 at a time, I could just write 1024, then
+wait for sel to change and then write 1024 more bytes.
+
+what if there is a case where read is faster than write? We still basically do
+the same thing though, read 1024 and then wait for sel to change. But... we
+don't want to change sel until both rd and wr have finished.
+
+what about 2 flags, rd_done and wr_done. Each flag is set when the last address
+is read from or written to, respectively. Only when both flags are set does sel
+change, and then both flags are reset.
+
+rd_done needs to start as 1 because the buffer at reset is empty. The first
+buffer needs to be written to, then it needs to switch to the second buffer
+before the first one can be read from.
