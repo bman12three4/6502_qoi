@@ -66,7 +66,7 @@ always_comb begin
 
     if (sel) begin
         input_buffer_addr = addr_b;
-        data_b_o = input_buffer_data;
+        data_b_o = _input_buffer_data;
         input_buffer_cs = cs_b & ~we_b;
         input_buffer_oe = '1;
         input_buffer_we = '0;
@@ -88,7 +88,7 @@ always_comb begin
         input_buffer_we = '1;
 
         output_buffer_addr = addr_a;
-        data_a_o = output_buffer_data;
+        data_a_o = _output_buffer_data;
         output_buffer_cs = cs_a & ~we_a;
         output_buffer_oe = '1;
         output_buffer_we = '0;

@@ -13,7 +13,7 @@ import qoi_types::*;
     input addr_t addr
 );
 
-addr_t accel_addr;
+addr_t accel_addr, next_accel_addr;
 byte_t accel_data_o, accel_data_i;
 byte_t mem_data_o;
 logic accel_cs, accel_we;
@@ -34,6 +34,7 @@ memory_unit u_memory_unit(
 
     .addr_b(accel_addr),
     .data_b_i(accel_data_o),
+    .data_b_o(accel_data_i),
     .cs_b(accel_cs),
     .we_b(accel_we),
 
@@ -82,7 +83,7 @@ assign op[OP_RUN] = run_op;
 
 logic last_write, next_last_write;
 
-logic [2:0] read_count, next_read_count;
+logic [3:0] read_count, next_read_count;
 
 typedef enum logic [2:0] {IDLE, RUN, READ_CPU, READ, WRITE} state_t;
 state_t state, next_state;
@@ -127,6 +128,8 @@ always_ff @(posedge clk) begin
 end
 
 always_comb begin
+    next_accel_addr = accel_addr;
+    next_px = px;
     next_state = state;
     next_read_count = read_count;
     next_count = count;
@@ -155,9 +158,23 @@ always_comb begin
             mem_sel = 0;
             r_flag = '1;
 
-
             if (mem_flag) begin
-                next_state = IDLE;
+                next_state = READ;
+            end
+        end
+
+        READ: begin
+            mem_sel = '1;
+            accel_cs = '1;
+            accel_we = '0;
+            next_px = px;
+            next_read_count = read_count + 1;
+            next_accel_addr = accel_addr + 1;
+            if (read_count == 3'h4) begin
+                next_state = RUN;
+            end
+            if (read_count > 0) begin
+                next_px[8*(read_count-1) +: 8] = accel_data_i;
             end
         end
 
@@ -224,18 +241,6 @@ always_comb begin
             end
 
             next_op = op;
-        end
-
-        READ: begin
-            r_flag = '1;
-            next_px = px;
-            if (we && cs) begin
-                next_read_count = read_count + 1;
-                if (read_count == 2'h3) begin
-                    next_state = RUN;
-                end
-                next_px[8*read_count +: 8] = data_i;
-            end
         end
 
         WRITE: begin
@@ -320,6 +325,7 @@ always_ff @(posedge clk) begin
         end
         prev_px <= '0;
         is_first <= '1;
+        accel_addr <= '0;
     end else begin
         state <= next_state;
         px <= next_px;
@@ -332,6 +338,7 @@ always_ff @(posedge clk) begin
         op_r <= next_op;
         count <= next_count;
         is_first <= next_is_first;
+        accel_addr <= next_accel_addr;
     end
 end
 
