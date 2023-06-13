@@ -16,10 +16,12 @@ import qoi_types::*;
 
     input sel,
 
-    output flag
+    output logic flag_o
 );
 
 logic flag, next_flag;
+
+//assign flag_o = next_flag;
 
 byte_t input_buffer_data;
 wire [7:0] _input_buffer_data;
@@ -53,6 +55,7 @@ ssram output_buffer(
     .oe(output_buffer_oe)
 );
 
+/*
 always_ff @(posedge clk) begin
     if (rst) begin
         flag <= '0;
@@ -60,9 +63,11 @@ always_ff @(posedge clk) begin
         flag <= next_flag;
     end
 end
+*/
 
 always_comb begin
-    next_flag = flag;
+    //next_flag = flag;
+    flag_o = 0;
 
     if (sel) begin
         input_buffer_addr = addr_b;
@@ -77,8 +82,9 @@ always_comb begin
         output_buffer_oe = '0;
         output_buffer_we = '1;
 
-        if (addr_b == '1 && cs_b) begin
-            next_flag = '1;
+        if (cs_b) begin
+            //next_flag = &addr_b;
+            //flag_o = &addr_b;
         end
     end else begin
         input_buffer_addr = addr_a;
@@ -93,8 +99,9 @@ always_comb begin
         output_buffer_oe = '1;
         output_buffer_we = '0;
 
-        if (addr_a == '1 && cs_a) begin
-            next_flag = '1;
+        if (cs_a) begin
+            //next_flag = &addr_a;
+            flag_o = &addr_a;
         end
     end
 

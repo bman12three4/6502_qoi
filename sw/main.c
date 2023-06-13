@@ -57,8 +57,11 @@ int main(void)
 
 	accel_ctrl[3] = QOI_START | QOI_ENCODE;
 
-	while (!(accel_ctrl[3] & QOI_READ_FLAG));
-	memcpy(accel, img, 1024);
+	while(s < size * 4) {
+		while (!(accel_ctrl[3] & QOI_READ_FLAG));
+		memcpy(accel, img+s, 1024);
+		s += 1024;
+	}
 
 	return 0;
 }
