@@ -31,7 +31,7 @@ memory_unit u_memory_unit(
     .addr_a(addr),
     .data_a_i(data_i),
     .data_a_o(mem_data_o),
-    .cs_a(mem_cs),
+    .cs_a(mem_cs | mem_cs_q),
     .we_a(we),
 
     .addr_b(accel_addr),
@@ -87,7 +87,7 @@ logic last_write, next_last_write;
 
 logic [2:0] read_count, next_read_count;
 
-typedef enum logic [2:0] {IDLE, RUN, READ_CPU, READ, WRITE} state_t;
+typedef enum logic [2:0] {IDLE, RUN, READ_CPU, READ, WRITE, WRITE_CPU} state_t;
 state_t state, next_state;
 
 assign size[0*8 +: 8] = input_data[4];
@@ -112,7 +112,8 @@ assign output_data[3][0] = r_flag;
 
 assign output_data[0] = encoded_data;
 
-assign data_o = cs ? output_data[addr] : mem_cs ? mem_data_o : 'z;
+logic mem_cs_q;
+assign data_o = cs ? output_data[addr] : mem_cs_q ? mem_data_o : 'z;
 
 assign vr = px.r - prev_px.r;
 assign vg = px.g - prev_px.g;
@@ -280,6 +281,10 @@ always_comb begin
                 next_state = IDLE;
             end
 
+            if (accel_addr == '1) begin
+                next_state = WRITE_CPU;
+            end
+
             if (op_r[OP_RUN]) begin
                 $display("In RUN write case %d", read_count);
                 encoded_data = 8'hc0 | (run_r - 1);
@@ -336,6 +341,15 @@ always_comb begin
 
             accel_data_o = encoded_data;
         end
+
+        WRITE_CPU: begin
+            mem_sel = 0;
+            w_flag = '1;
+
+            if (addr == '1 && mem_cs == '1) begin
+                next_state = WRITE;
+            end
+        end
     endcase
 end
 
@@ -353,6 +367,7 @@ always_ff @(posedge clk) begin
         is_first <= '1;
         accel_rd_addr <= '0;
         accel_wr_addr <= '0;
+        mem_cs_q <= '0;
     end else begin
         state <= next_state;
         px <= next_px;
@@ -367,6 +382,7 @@ always_ff @(posedge clk) begin
         is_first <= next_is_first;
         accel_wr_addr <= next_accel_wr_addr;
         accel_rd_addr <= next_accel_rd_addr;
+        mem_cs_q <= mem_cs;
     end
 end
 
