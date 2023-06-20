@@ -85,7 +85,7 @@ assign op[OP_RUN] = run_op;
 
 logic last_write, next_last_write;
 
-logic [3:0] read_count, next_read_count;
+logic [2:0] read_count, next_read_count;
 
 typedef enum logic [2:0] {IDLE, RUN, READ_CPU, READ, WRITE} state_t;
 state_t state, next_state;
@@ -105,8 +105,8 @@ assign output_data[7][5:0] = count[3*8 +: 6];
 
 
 assign output_data[3][7] = working;
-assign output_data[3][6:4] = '0;
-assign output_data[3][3:2] = read_count;
+assign output_data[3][6:5] = '0;
+assign output_data[3][4:2] = read_count;
 assign output_data[3][1] = w_flag;
 assign output_data[3][0] = r_flag;
 
@@ -130,6 +130,7 @@ always_ff @(posedge clk) begin
 end
 
 always_comb begin
+    accel_data_o = '0;
     next_accel_rd_addr = accel_rd_addr;
     next_accel_wr_addr = accel_wr_addr;
     accel_cs = '0;
@@ -163,16 +164,25 @@ always_comb begin
             r_flag = '1;
 
             if (mem_flag) begin
-                next_state = READ;
+                if (count == 0) begin
+                    next_state = READ;
+                end else begin
+                    next_state = RUN;
+                end
             end
         end
 
+        // This should not be so many if statements
         READ: begin
             mem_sel = '1;
             accel_cs = '1;
             accel_we = '0;
             next_px = px;
             next_read_count = read_count + 1;
+
+            if (read_count < 3'h4) begin
+                next_accel_rd_addr = accel_rd_addr + 1;
+            end
             accel_addr = accel_rd_addr;
 
             if (read_count >= 3'h4) begin
@@ -183,7 +193,6 @@ always_comb begin
             end
 
             if (read_count > 0 && read_count <=3'h4) begin
-                next_accel_rd_addr = accel_rd_addr + 1;
                 next_px[8*(read_count-1) +: 8] = accel_data_i;
             end
 
@@ -260,8 +269,6 @@ always_comb begin
             accel_cs = '1;
             accel_we = '1;
 
-            accel_data_o = encoded_data;
-
             next_accel_wr_addr = accel_wr_addr + 1;
             accel_addr = accel_wr_addr;
 
@@ -326,6 +333,8 @@ always_comb begin
                 next_read_count = '0;
                 next_state = READ;
             end
+
+            accel_data_o = encoded_data;
         end
     endcase
 end

@@ -1,7 +1,7 @@
 module tb();
 
 timeunit 10ns;
-timeprecision 10ns;
+timeprecision 1ns;
 
 logic clk, reset;
 logic [15:0] AB;
@@ -96,6 +96,7 @@ initial begin
 		if (AB == '1) begin
 			repeat(5) @(posedge clk);
 			$writememh("outputqoi.mem", qoi);
+			$writememh("output_buffer.mem", u_qoi.u_memory_unit.output_buffer.mem);
 			$finish();
 		end
 		@(posedge clk);

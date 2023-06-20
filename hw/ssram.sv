@@ -16,6 +16,7 @@ byte_t mem [DEPTH];
 
 always @(posedge clk) begin
     if (cs & we) begin
+        $display("SSRAM %m M[%x] <= %x", addr, data);
         mem[addr] <= data;
     end
 

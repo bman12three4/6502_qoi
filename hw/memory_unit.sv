@@ -78,7 +78,7 @@ always_comb begin
 
         output_buffer_addr = addr_b;
         output_buffer_data = data_b_i;
-        output_buffer_cs = cs_a & we_a;
+        output_buffer_cs = cs_b & we_b;
         output_buffer_oe = '0;
         output_buffer_we = '1;
 
