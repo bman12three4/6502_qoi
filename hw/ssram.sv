@@ -1,18 +1,19 @@
 module ssram 
-import qoi_types::*;
 #(
+    parameter ADDR_WIDTH = 10,
+    parameter DATA_WIDTH = 8, 
     parameter DEPTH = 1024
 ) (
     input clk,
-    input addr_t addr,
-    inout byte_t data,
+    input [ADDR_WIDTH-1:0] addr,
+    inout [DATA_WIDTH-1:0] data,
     input cs,
     input we,
     input oe
 );
 
-byte_t _data;
-byte_t mem [DEPTH];
+reg [DATA_WIDTH-1:0]  _data;
+reg [DATA_WIDTH-1:0]  mem [DEPTH];
 
 always @(posedge clk) begin
     if (cs & we) begin
