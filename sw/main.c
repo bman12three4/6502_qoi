@@ -61,8 +61,7 @@ int main(void)
 
 	// Need some checking for final read/write (i.e. not n*1024)
 
-	while(!(accel_ctrl[3] & QOI_FINAL_FLAG)) {
-		status = accel_ctrl[3];
+	while(!((status = accel_ctrl[3]) & QOI_FINAL_FLAG)) {
 		if (status & QOI_READ_FLAG) {
 			memcpy(accel, img+s, 1024);
 			s += 1024;
