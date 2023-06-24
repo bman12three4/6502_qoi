@@ -59,6 +59,7 @@ size_t count, next_count;
 logic is_first, next_is_first;
 pixel_t next_px, px, next_prev_px, prev_px;
 logic r_flag, w_flag;
+logic final_flag;
 logic working;
 
 logic [5:0] run, next_run, run_r, next_run_r;
@@ -105,10 +106,15 @@ assign output_data[7][5:0] = count[3*8 +: 6];
 
 
 assign output_data[3][7] = working;
-assign output_data[3][6:5] = '0;
+assign output_data[3][6] = final_flag;
+assign output_data[3][5] = '0;
 assign output_data[3][4:2] = read_count;
 assign output_data[3][1] = w_flag;
 assign output_data[3][0] = r_flag;
+
+assign output_data[1] = accel_wr_addr[7:0];
+assign output_data[2][1:0] = accel_wr_addr[9:8];
+assign output_data[2][7:2] = '0;
 
 assign output_data[0] = encoded_data;
 
@@ -143,6 +149,7 @@ always_comb begin
     working = 0;
     r_flag = '0;
     w_flag = '0;
+    final_flag = '0;
 
     run_match = '0;
     next_run = run;
@@ -189,7 +196,7 @@ always_comb begin
             if (read_count >= 3'h4) begin
                 next_state = RUN;
             end 
-            if (accel_rd_addr == '1) begin
+            if (accel_rd_addr == '1 && !(count == (size - 1))) begin
                 next_state = READ_CPU;
             end
 
@@ -277,11 +284,12 @@ always_comb begin
             if (op_r[OP_RUN]) begin
                 next_state = RUN;
             end
-            if (count == size - 1) begin
-                next_state = IDLE;
+
+            if (count == (size - 1)) begin
+                next_accel_wr_addr = accel_wr_addr;
             end
 
-            if (accel_addr == '1) begin
+            if (accel_addr == '1 || count == (size - 1)) begin
                 next_state = WRITE_CPU;
             end
 
@@ -345,6 +353,9 @@ always_comb begin
         WRITE_CPU: begin
             mem_sel = 0;
             w_flag = '1;
+            if (count == (size - 1)) begin
+                final_flag = '1;
+            end
 
             if (addr == '1 && mem_cs == '1) begin
                 next_state = WRITE;

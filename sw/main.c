@@ -8,6 +8,7 @@
 
 #define QOI_READ_FLAG ((char)(1 << 0))
 #define QOI_WRITE_FLAG ((char)(1 << 1))
+#define QOI_FINAL_FLAG ((char)(1 << 6))
 
 unsigned char* qoi = (unsigned char*)0x9000;
 unsigned char* img = (unsigned char*)0x8000;
@@ -33,6 +34,7 @@ int main(void)
 {
 	uint32_t size;
 	uint32_t s, d;
+	uint16_t remain;
 	char i;
 
 	d = 0;
@@ -68,6 +70,16 @@ int main(void)
 			memcpy(qoi+d, accel, 1024);
 			d += 1024;
 		}
+	}
+
+	while(!(accel_ctrl[3] & QOI_FINAL_FLAG));
+	remain = accel_ctrl[1];
+	remain += accel_ctrl[2] << 8;
+	memcpy(qoi+d, accel, remain+1);
+	d += remain + 1;
+
+	for (i = 0; i < (int)sizeof(qoi_padding); i++) {
+		qoi[d++] = qoi_padding[i];
 	}
 
 	return 0;
