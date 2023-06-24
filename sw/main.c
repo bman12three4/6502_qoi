@@ -50,18 +50,13 @@ int main(void)
 	d = 0;
 	s = 0;
 
-	desc.width = 32;
-	desc.height = 32;
-	desc.channels = 4;
-	desc.colorspace = QOI_SRGB;
-
 	size = desc.width * desc.height;
 
-	header_magic = qoi_read_32(qoi, &d);
-	desc.width = qoi_read_32(qoi, &d);
-	desc.height = qoi_read_32(qoi, &d);
-	desc.channels = qoi[d++];
-	desc.colorspace = qoi[d++];
+	header_magic = qoi_read_32(qoi, &s);
+	desc.width = qoi_read_32(qoi, &s);
+	desc.height = qoi_read_32(qoi, &s);
+	desc.channels = qoi[s++];
+	desc.colorspace = qoi[s++];
 
 	for (i = 0; i < 4; i++) {
 		accel_ctrl[i+4] = size >> i*8;

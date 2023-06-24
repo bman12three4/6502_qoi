@@ -49,10 +49,14 @@ byte_t input_data[8];
 byte_t output_data[8];
 
 byte_t encoded_data;
+byte_t qoi_op, next_qoi_op;
 
 index_t index;
 pixel_t index_arr[64];
 pixel_t index_val, next_index_val;
+
+byte_t decode_buffer[4];
+byte_t next_decode_buffer[4];
 
 size_t size;
 size_t count, next_count;
@@ -88,8 +92,9 @@ assign op[OP_RUN] = run_op;
 logic last_write, next_last_write;
 
 logic [2:0] read_count, next_read_count;
+logic [2:0] read_size, next_read_size;
 
-typedef enum logic [2:0] {IDLE, RUN, READ_CPU, READ, WRITE, WRITE_CPU} state_t;
+typedef enum logic [2:0] {IDLE, RUN, READ_CPU, READ, WRITE, WRITE_CPU, OP_FETCH, OP_DECODE} state_t;
 state_t state, next_state;
 
 assign size[0*8 +: 8] = input_data[4];
@@ -162,6 +167,10 @@ always_comb begin
     index_val = index_arr[index];
     next_index_val = index_val;
 
+    for (int i = 0; i < 4; i++) begin
+        next_decode_buffer[i] = decode_buffer[i];
+    end
+
     case (state)
         IDLE: begin
             if (cs && we && addr == 3 && data_i[7]) begin
@@ -178,6 +187,10 @@ always_comb begin
                     next_state = READ;
                 end else begin
                     next_state = RUN;
+                end
+
+                if (mode == 1) begin
+                    next_state = OP_FETCH;
                 end
             end
         end
@@ -215,9 +228,70 @@ always_comb begin
                     next_px[8*(read_count-1) +: 8] = accel_data_i;
                 end
             end else begin
-                $display("Read in mode 1 not supported");
+                accel_addr = accel_rd_addr;
+                next_read_count = read_count + 1;
+                if (read_count < read_size) begin
+                    next_accel_rd_addr = accel_rd_addr + 1;
+                end
+                if (read_count >= read_size) begin
+                    next_state = RUN;
+                end
+                if (read_count > 0 && read_count <= read_size) begin
+                    next_decode_buffer[read_count-1] = accel_data_i;
+                end
             end
 
+        end
+
+        OP_FETCH: begin
+            mem_sel = '1;
+            accel_cs = '1;
+            accel_we = '0;
+
+            accel_addr = accel_rd_addr;
+            next_accel_rd_addr = accel_rd_addr + 1;
+            next_qoi_op = accel_data_i;
+            next_state = OP_DECODE;
+            //Read 1 byte from memory
+        end
+
+        OP_DECODE: begin
+            casez (next_qoi_op) 
+                8'b00??????: begin
+                    $display("Read QOI_OP_INDEX");
+                    next_state = RUN;
+                end
+
+                8'b01??????: begin
+                    $display("Read QOI_OP_DIFF");
+                    next_state = RUN;
+                end
+
+                8'b10??????: begin
+                    $display("Read QOI_OP_LUMA");
+                    next_read_size = 1;
+                    next_read_count = '0;
+                    next_state = READ;
+                end
+
+                8'b11111110: begin
+                    $display("Read QOI_OP_RGB");
+                    next_read_size = 3;
+                    next_state = READ;
+                end
+
+                8'b11111111: begin
+                    $display("Read QOI_OP_RGBA");
+                    next_read_size = 4;
+                    next_read_count = '0;
+                    next_state = READ;
+                end
+
+                8'b11??????: begin
+                    $display("Read QOI_OP_RUN");
+                    next_state = RUN;
+                end
+            endcase
         end
 
         RUN: begin
@@ -286,6 +360,7 @@ always_comb begin
                 next_op = op;
             end else begin
                 $display("Run in mode 1 is not supported");
+                next_state = OP_FETCH;
             end
         end
 
@@ -397,12 +472,16 @@ always_ff @(posedge clk) begin
         for (int i = 0; i < 64; i++) begin
             index_arr[i] <= '0;
         end
+        for (int i = 0; i < 4; i++) begin
+            decode_buffer[i] <= '0;
+        end
         prev_px <= '0;
         is_first <= '1;
         accel_rd_addr <= '0;
         accel_wr_addr <= '0;
         mem_cs_q <= '0;
         read_wait_flag <= '0;
+        read_size <= '0;
     end else begin
         state <= next_state;
         px <= next_px;
@@ -419,6 +498,11 @@ always_ff @(posedge clk) begin
         accel_rd_addr <= next_accel_rd_addr;
         mem_cs_q <= mem_cs;
         read_wait_flag <= next_read_wait_flag;
+        qoi_op <= next_qoi_op;
+        for (int i = 0; i < 4; i++) begin
+            decode_buffer[i] <= next_decode_buffer[i];
+        end
+        read_size <= next_read_size;
     end
 end
 

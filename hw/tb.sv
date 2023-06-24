@@ -56,6 +56,10 @@ assign qoi_cs = (AB >= 16'ha400 && AB < 16'ha408);
 initial begin
     $dumpfile("tb.vcd");
     $dumpvars(0,tb);
+	for (int i = 0; i < 4; i++) begin
+		$dumpvars(0, tb.u_qoi.decode_buffer[i]);
+		$dumpvars(0, tb.u_qoi.next_decode_buffer[i]);
+	end
 end
 `endif
 
