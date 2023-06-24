@@ -8,7 +8,7 @@ typedef struct packed {
 } pixel_t;
 
 typedef logic [7:0] byte_t;
-typedef logic [2:0] addr_t;
+typedef logic [9:0] addr_t;
 
 typedef logic [29:0] size_t;
 

@@ -4,12 +4,45 @@ import qoi_types::*;
     input clk,
     input rst,
     input cs,
+    input mem_cs,
     input we,
 
     input byte_t data_i,
     output byte_t data_o,
 
     input addr_t addr
+);
+
+addr_t accel_rd_addr, next_accel_rd_addr;
+addr_t accel_wr_addr, next_accel_wr_addr;
+addr_t accel_addr;
+byte_t accel_data_o, accel_data_i;
+byte_t mem_data_o;
+logic accel_cs, accel_we;
+
+logic mem_sel;
+
+logic mem_flag;
+
+memory_unit u_memory_unit(
+    .clk(clk),
+    .rst(rst),
+
+    .addr_a(addr),
+    .data_a_i(data_i),
+    .data_a_o(mem_data_o),
+    .cs_a(mem_cs | mem_cs_q),
+    .we_a(we),
+
+    .addr_b(accel_addr),
+    .data_b_i(accel_data_o),
+    .data_b_o(accel_data_i),
+    .cs_b(accel_cs),
+    .we_b(accel_we),
+
+    .sel(mem_sel),
+
+    .flag_o(mem_flag)
 );
 
 byte_t input_data[8];
@@ -26,6 +59,8 @@ size_t count, next_count;
 logic is_first, next_is_first;
 pixel_t next_px, px, next_prev_px, prev_px;
 logic r_flag, w_flag;
+logic read_wait_flag, next_read_wait_flag;
+logic final_flag;
 logic working;
 
 logic [5:0] run, next_run, run_r, next_run_r;
@@ -54,7 +89,7 @@ logic last_write, next_last_write;
 
 logic [2:0] read_count, next_read_count;
 
-typedef enum logic [1:0] {IDLE, RUN, READ, WRITE} state_t;
+typedef enum logic [2:0] {IDLE, RUN, READ_CPU, READ, WRITE, WRITE_CPU} state_t;
 state_t state, next_state;
 
 assign size[0*8 +: 8] = input_data[4];
@@ -72,14 +107,20 @@ assign output_data[7][5:0] = count[3*8 +: 6];
 
 
 assign output_data[3][7] = working;
-assign output_data[3][6:4] = '0;
-assign output_data[3][3:2] = read_count;
+assign output_data[3][6] = final_flag;
+assign output_data[3][5] = '0;
+assign output_data[3][4:2] = read_count;
 assign output_data[3][1] = w_flag;
 assign output_data[3][0] = r_flag;
 
+assign output_data[1] = accel_wr_addr[7:0];
+assign output_data[2][1:0] = accel_wr_addr[9:8];
+assign output_data[2][7:2] = '0;
+
 assign output_data[0] = encoded_data;
 
-assign data_o = cs ? output_data[addr] : 'z;
+logic mem_cs_q;
+assign data_o = cs ? output_data[addr] : mem_cs_q ? mem_data_o : 'z;
 
 assign vr = px.r - prev_px.r;
 assign vg = px.g - prev_px.g;
@@ -97,6 +138,11 @@ always_ff @(posedge clk) begin
 end
 
 always_comb begin
+    accel_data_o = '0;
+    next_accel_rd_addr = accel_rd_addr;
+    next_accel_wr_addr = accel_wr_addr;
+    accel_cs = '0;
+    next_px = px;
     next_state = state;
     next_read_count = read_count;
     next_count = count;
@@ -104,6 +150,8 @@ always_comb begin
     working = 0;
     r_flag = '0;
     w_flag = '0;
+    next_read_wait_flag = '0;
+    final_flag = '0;
 
     run_match = '0;
     next_run = run;
@@ -117,8 +165,54 @@ always_comb begin
     case (state)
         IDLE: begin
             if (cs && we && addr == 3 && data_i[7]) begin
-                next_state = READ;
+                next_state = READ_CPU;
             end
+        end
+
+        READ_CPU: begin
+            mem_sel = 0;
+            r_flag = '1;
+
+            if (mem_flag) begin
+                if (count == 0) begin
+                    next_state = READ;
+                end else begin
+                    next_state = RUN;
+                end
+            end
+        end
+
+        // This should not be so many if statements
+        READ: begin
+            mem_sel = '1;
+            accel_cs = '1;
+            accel_we = '0;
+            next_px = px;
+
+            if (read_wait_flag) begin
+                next_accel_rd_addr = '0;
+                next_state = READ_CPU;
+            end else begin
+                next_read_count = read_count + 1;
+
+                if (read_count < 3'h4) begin
+                    next_accel_rd_addr = accel_rd_addr + 1;
+                end
+                accel_addr = accel_rd_addr;
+
+                if (read_count >= 3'h4) begin
+                    next_state = RUN;
+                end
+                if (accel_rd_addr == '1 && !(count == (size - 1))) begin
+                    next_accel_rd_addr = accel_rd_addr;
+                    next_read_wait_flag = '1;
+                end
+            end
+
+            if (read_count > 0 && read_count <=3'h4) begin
+                next_px[8*(read_count-1) +: 8] = accel_data_i;
+            end
+
         end
 
         RUN: begin
@@ -176,7 +270,6 @@ always_comb begin
             end else begin
                 next_read_count = '0;
                 next_state = WRITE;
-                next_last_write = '0;
             end
 
             if (!run_op) begin
@@ -186,46 +279,38 @@ always_comb begin
             next_op = op;
         end
 
-        READ: begin
-            r_flag = '1;
-            next_px = px;
-            if (we && cs) begin
-                next_read_count = read_count + 1;
-                if (read_count == 2'h3) begin
-                    next_state = RUN;
-                end
-                next_px[8*read_count +: 8] = data_i;
-            end
-        end
-
         WRITE: begin
-            next_last_write = last_write;
-            w_flag = '1;
+            last_write = '0;
+            
+            mem_sel = '1;
+            accel_cs = '1;
+            accel_we = '1;
 
-            if (~we & cs & addr == '0) begin
-                next_read_count = read_count + 1;
-                if (op_r[OP_RUN]) begin
-                    next_state = RUN;
-                end
-                if (last_write) begin
-                    next_prev_px = px;
-                    next_read_count = '0;
-                    next_state = READ;
-                end
-                if (count == size - 1) begin
-                    next_state = IDLE;
-                end
+            next_accel_wr_addr = accel_wr_addr + 1;
+            accel_addr = accel_wr_addr;
+
+            next_read_count = read_count + 1;
+            if (op_r[OP_RUN]) begin
+                next_state = RUN;
+            end
+
+            if (count == (size - 1)) begin
+                next_accel_wr_addr = accel_wr_addr;
+            end
+
+            if (accel_addr == '1 || count == (size - 1)) begin
+                next_state = WRITE_CPU;
             end
 
             if (op_r[OP_RUN]) begin
-                if (cs && addr == '0) $display("In RUN write case %d", read_count);
+                $display("In RUN write case %d", read_count);
                 encoded_data = 8'hc0 | (run_r - 1);
             end else if (op_r[OP_INDEX]) begin
-                if (cs && addr == '0) $display("In INDEX write case %d", read_count);
+                $display("In INDEX write case %d", read_count);
                 encoded_data = 8'h00 | index;
-                next_last_write = 1;
+                last_write = 1;
             end else if (op_r[OP_RGBA]) begin
-                if (cs && addr == '0) $display("In RGBA write case %d", read_count);
+                $display("In RGBA write case %d", read_count);
                 case (read_count)
                     0: encoded_data = 8'hff;
                     1: encoded_data = px.r;
@@ -233,36 +318,56 @@ always_comb begin
                     3: encoded_data = px.b;
                     4: begin
                         encoded_data = px.a;
-                        next_last_write = 1;
+                        last_write = 1;
                     end
                 endcase
             end else if (op_r[OP_DIFF]) begin
-                if (cs && addr == '0) $display("In DIFF write case %d", read_count);
+                $display("In DIFF write case %d", read_count);
                 encoded_data = 8'h40 | (vr + 2) << 4 | (vg + 2) << 2 | (vb + 2);
-                next_last_write = 1;
+                last_write = 1;
             end else if (op_r[OP_LUMA]) begin
-                if (cs && addr == '0) $display("In DIFF write case %d", read_count);
+                $display("In DIFF write case %d", read_count);
                 case (read_count)
                     0: encoded_data = 8'h80 | (vg + 32);
                     1: begin
                         encoded_data = (vg_r + 8) << 4 | (vg_b +  8);
-                        next_last_write = 1;
+                        last_write = 1;
                     end
                 endcase 
             end else if (op_r[OP_RGB]) begin
-                if (cs && addr == '0) $display("In RGB write case %d", read_count);
+                $display("In RGB write case %d", read_count);
                 case (read_count)
                     0: encoded_data = 8'hfe;
                     1: encoded_data = px.r;
                     2: encoded_data = px.g;
                     3: begin
                         encoded_data = px.b;
-                        next_last_write = 1;
+                        last_write = 1;
                     end
                 endcase
 
             end else begin
-                if (cs && addr == '0) $error("Undefined op: %x", op);
+                $error("Undefined op: %x", op);
+            end
+
+            if (last_write) begin
+                next_prev_px = px;
+                next_read_count = '0;
+                next_state = READ;
+            end
+
+            accel_data_o = encoded_data;
+        end
+
+        WRITE_CPU: begin
+            mem_sel = 0;
+            w_flag = '1;
+            if (count == (size - 1)) begin
+                final_flag = '1;
+            end
+
+            if (addr == '1 && mem_cs == '1) begin
+                next_state = WRITE;
             end
         end
     endcase
@@ -274,24 +379,32 @@ always_ff @(posedge clk) begin
         count <= '0;
         read_count <= '0;
         run <= '0;
-        last_write <= '0;
+        //last_write <= '0;
         for (int i = 0; i < 64; i++) begin
             index_arr[i] <= '0;
         end
         prev_px <= '0;
         is_first <= '1;
+        accel_rd_addr <= '0;
+        accel_wr_addr <= '0;
+        mem_cs_q <= '0;
+        read_wait_flag <= '0;
     end else begin
         state <= next_state;
         px <= next_px;
         prev_px <= next_prev_px;
         index_arr[index] <= next_index_val;
         read_count <= next_read_count;
-        last_write <= next_last_write;
+        //last_write <= next_last_write;
         run <= next_run;
         run_r <= next_run_r;
         op_r <= next_op;
         count <= next_count;
         is_first <= next_is_first;
+        accel_wr_addr <= next_accel_wr_addr;
+        accel_rd_addr <= next_accel_rd_addr;
+        mem_cs_q <= mem_cs;
+        read_wait_flag <= next_read_wait_flag;
     end
 end
 

@@ -10,3 +10,8 @@ lists/
 
 *.bkp
 *.dtmp
+
+*.mem
+*.log
+*.xxd
+*.fst

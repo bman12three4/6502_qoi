@@ -1,7 +1,7 @@
 IVERILOG=iverilog
 IVERILOG_ARGS=-g2012 -DSIM
 PKGS=qoi_types.sv
-SRCS=qoi.sv ALU.v cpu_65c02.v
+SRCS=ssram.sv memory_unit.sv qoi.sv ALU.v cpu_65c02.v
 TB=tb.sv
 TOP=tb
 NAME=simv

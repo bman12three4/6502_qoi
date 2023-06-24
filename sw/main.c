@@ -1,15 +1,20 @@
 #include "qoi.h"
 #include "stream_qoi.h"
 
+#include <string.h>
+
 #define QOI_START  ((char)(1 << 7))
 #define QOI_ENCODE ((char)(0 << 7))
 
 #define QOI_READ_FLAG ((char)(1 << 0))
 #define QOI_WRITE_FLAG ((char)(1 << 1))
+#define QOI_FINAL_FLAG ((char)(1 << 6))
 
 unsigned char* qoi = (unsigned char*)0x9000;
 unsigned char* img = (unsigned char*)0x8000;
 unsigned char* accel = (unsigned char*)0xa000;
+
+unsigned char* accel_ctrl = (unsigned char*)0xa400;
 
 static const unsigned char qoi_padding[8] = {0,0,0,0,0,0,0,1};
 
@@ -29,6 +34,7 @@ int main(void)
 {
 	uint32_t size;
 	uint32_t s, d;
+	uint16_t remain;
 	char i;
 
 	d = 0;
@@ -48,25 +54,28 @@ int main(void)
 	qoi[d++] = desc.colorspace;
 
 	for (i = 0; i < 4; i++) {
-		accel[i+4] = size >> i*8;
+		accel_ctrl[i+4] = size >> i*8;
 	}
 
-	accel[3] = QOI_START | QOI_ENCODE;
+	accel_ctrl[3] = QOI_START | QOI_ENCODE;
 
-	while(s < 4096) {
-		status = accel[3];
+	// Need some checking for final read/write (i.e. not n*1024)
+
+	while(!((status = accel_ctrl[3]) & QOI_FINAL_FLAG)) {
 		if (status & QOI_READ_FLAG) {
-			accel[0] = img[s++];
+			memcpy(accel, img+s, 1024);
+			s += 1024;
 		} else if (status & QOI_WRITE_FLAG) {
-			qoi[d++] = accel[0];
+			memcpy(qoi+d, accel, 1024);
+			d += 1024;
 		}
 	}
 
-	// Grab last byte if there is any
-	// this needs to be handled better in the accelerator
-	if (accel[3] & QOI_WRITE_FLAG) {
-		qoi[d++] = accel[0];
-	}
+	while(!(accel_ctrl[3] & QOI_FINAL_FLAG));
+	remain = accel_ctrl[1];
+	remain += accel_ctrl[2] << 8;
+	memcpy(qoi+d, accel, remain+1);
+	d += remain + 1;
 
 	for (i = 0; i < (int)sizeof(qoi_padding); i++) {
 		qoi[d++] = qoi_padding[i];
