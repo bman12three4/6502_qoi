@@ -4,7 +4,8 @@
 #include <string.h>
 
 #define QOI_START  ((char)(1 << 7))
-#define QOI_ENCODE ((char)(0 << 7))
+#define QOI_ENCODE ((char)(0 << 6))
+#define QOI_DECODE ((char)(1 << 6))
 
 #define QOI_READ_FLAG ((char)(1 << 0))
 #define QOI_WRITE_FLAG ((char)(1 << 1))
@@ -30,11 +31,20 @@ static void qoi_write_32(unsigned char *bytes, uint32_t *p, uint32_t v)
 	bytes[(*p)++] = (0x000000ff & v);
 }
 
+static uint32_t qoi_read_32(const unsigned char *bytes, uint32_t *p) {
+	uint32_t a = bytes[(*p)++];
+	uint32_t b = bytes[(*p)++];
+	uint32_t c = bytes[(*p)++];
+	uint32_t d = bytes[(*p)++];
+	return a << 24 | b << 16 | c << 8 | d;
+}
+
 int main(void)
 {
 	uint32_t size;
 	uint32_t s, d;
 	uint16_t remain;
+	uint32_t header_magic;
 	char i;
 
 	d = 0;
@@ -47,26 +57,26 @@ int main(void)
 
 	size = desc.width * desc.height;
 
-	qoi_write_32(qoi, &d, QOI_MAGIC);
-	qoi_write_32(qoi, &d, desc.width);
-	qoi_write_32(qoi, &d, desc.height);
-	qoi[d++] = desc.channels;
-	qoi[d++] = desc.colorspace;
+	header_magic = qoi_read_32(qoi, &d);
+	desc.width = qoi_read_32(qoi, &d);
+	desc.height = qoi_read_32(qoi, &d);
+	desc.channels = qoi[d++];
+	desc.colorspace = qoi[d++];
 
 	for (i = 0; i < 4; i++) {
 		accel_ctrl[i+4] = size >> i*8;
 	}
 
-	accel_ctrl[3] = QOI_START | QOI_ENCODE;
+	accel_ctrl[3] = QOI_START | QOI_DECODE;
 
 	// Need some checking for final read/write (i.e. not n*1024)
 
 	while(!((status = accel_ctrl[3]) & QOI_FINAL_FLAG)) {
 		if (status & QOI_READ_FLAG) {
-			memcpy(accel, img+s, 1024);
+			memcpy(accel, qoi+s, 1024);
 			s += 1024;
 		} else if (status & QOI_WRITE_FLAG) {
-			memcpy(qoi+d, accel, 1024);
+			memcpy(img+d, accel, 1024);
 			d += 1024;
 		}
 	}
@@ -74,12 +84,7 @@ int main(void)
 	while(!(accel_ctrl[3] & QOI_FINAL_FLAG));
 	remain = accel_ctrl[1];
 	remain += accel_ctrl[2] << 8;
-	memcpy(qoi+d, accel, remain+1);
-	d += remain + 1;
-
-	for (i = 0; i < (int)sizeof(qoi_padding); i++) {
-		qoi[d++] = qoi_padding[i];
-	}
+	memcpy(img+d, accel, remain+1);
 
 	return 0;
 }

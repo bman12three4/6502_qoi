@@ -102,7 +102,7 @@ always @(posedge clk) begin
 end
 
 initial begin
-	$readmemh("weary_spaghet.mem", img);
+	$readmemh("weary_spaghet_qoi.mem", qoi);
 	$readmemh("qoi_sim.hex", rom);
 	reset = '1;
 	RDY = '1;
@@ -113,7 +113,7 @@ initial begin
 	while(1) begin
 		if (AB == '1) begin
 			repeat(5) @(posedge clk);
-			$writememh("outputqoi.mem", qoi);
+			$writememh("outputimg.mem", img);
 			$writememh("output_buffer.mem", u_qoi.u_memory_unit.output_buffer.mem);
 			$finish();
 		end
