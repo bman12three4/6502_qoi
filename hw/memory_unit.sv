@@ -101,7 +101,7 @@ always_comb begin
 
         if (cs_a) begin
             //next_flag = &addr_a;
-            flag_o = &addr_a;
+            flag_o = &addr_a & input_buffer_cs;
         end
     end
 

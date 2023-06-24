@@ -59,6 +59,7 @@ size_t count, next_count;
 logic is_first, next_is_first;
 pixel_t next_px, px, next_prev_px, prev_px;
 logic r_flag, w_flag;
+logic read_wait_flag, next_read_wait_flag;
 logic final_flag;
 logic working;
 
@@ -149,6 +150,7 @@ always_comb begin
     working = 0;
     r_flag = '0;
     w_flag = '0;
+    next_read_wait_flag = '0;
     final_flag = '0;
 
     run_match = '0;
@@ -186,18 +188,25 @@ always_comb begin
             accel_cs = '1;
             accel_we = '0;
             next_px = px;
-            next_read_count = read_count + 1;
 
-            if (read_count < 3'h4) begin
-                next_accel_rd_addr = accel_rd_addr + 1;
-            end
-            accel_addr = accel_rd_addr;
-
-            if (read_count >= 3'h4) begin
-                next_state = RUN;
-            end 
-            if (accel_rd_addr == '1 && !(count == (size - 1))) begin
+            if (read_wait_flag) begin
+                next_accel_rd_addr = '0;
                 next_state = READ_CPU;
+            end else begin
+                next_read_count = read_count + 1;
+
+                if (read_count < 3'h4) begin
+                    next_accel_rd_addr = accel_rd_addr + 1;
+                end
+                accel_addr = accel_rd_addr;
+
+                if (read_count >= 3'h4) begin
+                    next_state = RUN;
+                end
+                if (accel_rd_addr == '1 && !(count == (size - 1))) begin
+                    next_accel_rd_addr = accel_rd_addr;
+                    next_read_wait_flag = '1;
+                end
             end
 
             if (read_count > 0 && read_count <=3'h4) begin
@@ -379,6 +388,7 @@ always_ff @(posedge clk) begin
         accel_rd_addr <= '0;
         accel_wr_addr <= '0;
         mem_cs_q <= '0;
+        read_wait_flag <= '0;
     end else begin
         state <= next_state;
         px <= next_px;
@@ -394,6 +404,7 @@ always_ff @(posedge clk) begin
         accel_wr_addr <= next_accel_wr_addr;
         accel_rd_addr <= next_accel_rd_addr;
         mem_cs_q <= mem_cs;
+        read_wait_flag <= next_read_wait_flag;
     end
 end
 

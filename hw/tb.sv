@@ -102,7 +102,7 @@ always @(posedge clk) begin
 end
 
 initial begin
-	$readmemh("weary_spaghet.mem", img);
+	$readmemh("dots.mem", img);
 	$readmemh("qoi_sim.hex", rom);
 	reset = '1;
 	RDY = '1;
