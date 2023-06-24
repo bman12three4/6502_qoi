@@ -189,28 +189,33 @@ always_comb begin
             accel_we = '0;
             next_px = px;
 
-            if (read_wait_flag) begin
-                next_accel_rd_addr = '0;
-                next_state = READ_CPU;
+
+            if (mode == 0) begin
+                if (read_wait_flag) begin
+                    next_accel_rd_addr = '0;
+                    next_state = READ_CPU;
+                end else begin
+                    next_read_count = read_count + 1;
+
+                    if (read_count < 3'h4) begin
+                        next_accel_rd_addr = accel_rd_addr + 1;
+                    end
+                    accel_addr = accel_rd_addr;
+
+                    if (read_count >= 3'h4) begin
+                        next_state = RUN;
+                    end
+                    if (accel_rd_addr == '1 && !(count == (size - 1))) begin
+                        next_accel_rd_addr = accel_rd_addr;
+                        next_read_wait_flag = '1;
+                    end
+                end
+
+                if (read_count > 0 && read_count <=3'h4) begin
+                    next_px[8*(read_count-1) +: 8] = accel_data_i;
+                end
             end else begin
-                next_read_count = read_count + 1;
-
-                if (read_count < 3'h4) begin
-                    next_accel_rd_addr = accel_rd_addr + 1;
-                end
-                accel_addr = accel_rd_addr;
-
-                if (read_count >= 3'h4) begin
-                    next_state = RUN;
-                end
-                if (accel_rd_addr == '1 && !(count == (size - 1))) begin
-                    next_accel_rd_addr = accel_rd_addr;
-                    next_read_wait_flag = '1;
-                end
-            end
-
-            if (read_count > 0 && read_count <=3'h4) begin
-                next_px[8*(read_count-1) +: 8] = accel_data_i;
+                $display("Read in mode 1 not supported");
             end
 
         end
@@ -219,64 +224,69 @@ always_comb begin
             next_is_first = '0;
 
             index = px.r * 3 + px.g * 5 + px.b * 7 + px.a * 11;
-            index_op = px == index_val;
 
-            rgba_op = px.a != prev_px.a;
+            if (mode == 0) begin
+                index_op = px == index_val;
 
-            // Try to clean this up, does it really need 3 if statements?
-            if (px == prev_px && !is_first) begin
-                run_match = 1;
-                if (run == 62) begin
-                    next_run = 0;
-                    run_op = 1;
-                end else if (count == size - 1) begin
-                    run_op = 1;
-                    next_run = run + 1;
-                    next_run_r = next_run;
+                rgba_op = px.a != prev_px.a;
+
+                // Try to clean this up, does it really need 3 if statements?
+                if (px == prev_px && !is_first) begin
+                    run_match = 1;
+                    if (run == 62) begin
+                        next_run = 0;
+                        run_op = 1;
+                    end else if (count == size - 1) begin
+                        run_op = 1;
+                        next_run = run + 1;
+                        next_run_r = next_run;
+                    end else begin
+                        run_op = 0;
+                        next_run = run + 1;
+                        next_run_r = next_run;
+                    end
                 end else begin
-                    run_op = 0;
-                    next_run = run + 1;
-                    next_run_r = next_run;
+                    run_op = (run > 0);
+                    next_run = 0;
                 end
+
+                if (!run_op && ~index_op) begin
+                    next_index_val = px;
+                end
+
+                diff_op = (
+                    vr > -3 && vr < 2 &&
+                    vg > -3 && vg < 2 &&
+                    vb > -3 && vb < 2 &&
+                    px.a == prev_px.a
+                );
+
+                luma_op = (
+                    vg_r >  -9 && vg_r <  8 &&
+                    vg   > -33 && vg   < 32 &&
+                    vg_b >  -9 && vg_b <  8 &&
+                    px.a == prev_px.a
+                );
+
+                rgb_op = ~(diff_op | luma_op | index_op | rgba_op);
+
+                if (run_match && !run_op) begin
+                    next_run = run + 1;
+                    next_read_count = '0;
+                    next_state = READ;
+                end else begin
+                    next_read_count = '0;
+                    next_state = WRITE;
+                end
+
+                if (!run_op) begin
+                    next_count = count + 1;
+                end
+
+                next_op = op;
             end else begin
-                run_op = (run > 0);
-                next_run = 0;
+                $display("Run in mode 1 is not supported");
             end
-
-            if (!run_op && ~index_op) begin
-                next_index_val = px;
-            end
-
-            diff_op = (
-                vr > -3 && vr < 2 &&
-                vg > -3 && vg < 2 &&
-                vb > -3 && vb < 2 &&
-                px.a == prev_px.a
-            );
-
-            luma_op = (
-                vg_r >  -9 && vg_r <  8 &&
-                vg   > -33 && vg   < 32 &&
-                vg_b >  -9 && vg_b <  8 &&
-                px.a == prev_px.a
-            );
-
-            rgb_op = ~(diff_op | luma_op | index_op | rgba_op);
-
-            if (run_match && !run_op) begin
-                next_run = run + 1;
-                next_read_count = '0;
-                next_state = READ;
-            end else begin
-                next_read_count = '0;
-                next_state = WRITE;
-            end
-
-            if (!run_op) begin
-                next_count = count + 1;
-            end
-
-            next_op = op;
         end
 
         WRITE: begin
@@ -289,74 +299,78 @@ always_comb begin
             next_accel_wr_addr = accel_wr_addr + 1;
             accel_addr = accel_wr_addr;
 
-            next_read_count = read_count + 1;
-            if (op_r[OP_RUN]) begin
-                next_state = RUN;
-            end
+            if (mode == 0) begin
+                next_read_count = read_count + 1;
+                if (op_r[OP_RUN]) begin
+                    next_state = RUN;
+                end
 
-            if (count == (size - 1)) begin
-                next_accel_wr_addr = accel_wr_addr;
-            end
+                if (count == (size - 1)) begin
+                    next_accel_wr_addr = accel_wr_addr;
+                end
 
-            if (accel_addr == '1 || count == (size - 1)) begin
-                next_state = WRITE_CPU;
-            end
+                if (accel_addr == '1 || count == (size - 1)) begin
+                    next_state = WRITE_CPU;
+                end
 
-            if (op_r[OP_RUN]) begin
-                $display("In RUN write case %d", read_count);
-                encoded_data = 8'hc0 | (run_r - 1);
-            end else if (op_r[OP_INDEX]) begin
-                $display("In INDEX write case %d", read_count);
-                encoded_data = 8'h00 | index;
-                last_write = 1;
-            end else if (op_r[OP_RGBA]) begin
-                $display("In RGBA write case %d", read_count);
-                case (read_count)
-                    0: encoded_data = 8'hff;
-                    1: encoded_data = px.r;
-                    2: encoded_data = px.g;
-                    3: encoded_data = px.b;
-                    4: begin
-                        encoded_data = px.a;
-                        last_write = 1;
-                    end
-                endcase
-            end else if (op_r[OP_DIFF]) begin
-                $display("In DIFF write case %d", read_count);
-                encoded_data = 8'h40 | (vr + 2) << 4 | (vg + 2) << 2 | (vb + 2);
-                last_write = 1;
-            end else if (op_r[OP_LUMA]) begin
-                $display("In DIFF write case %d", read_count);
-                case (read_count)
-                    0: encoded_data = 8'h80 | (vg + 32);
-                    1: begin
-                        encoded_data = (vg_r + 8) << 4 | (vg_b +  8);
-                        last_write = 1;
-                    end
-                endcase 
-            end else if (op_r[OP_RGB]) begin
-                $display("In RGB write case %d", read_count);
-                case (read_count)
-                    0: encoded_data = 8'hfe;
-                    1: encoded_data = px.r;
-                    2: encoded_data = px.g;
-                    3: begin
-                        encoded_data = px.b;
-                        last_write = 1;
-                    end
-                endcase
+                if (op_r[OP_RUN]) begin
+                    $display("In RUN write case %d", read_count);
+                    encoded_data = 8'hc0 | (run_r - 1);
+                end else if (op_r[OP_INDEX]) begin
+                    $display("In INDEX write case %d", read_count);
+                    encoded_data = 8'h00 | index;
+                    last_write = 1;
+                end else if (op_r[OP_RGBA]) begin
+                    $display("In RGBA write case %d", read_count);
+                    case (read_count)
+                        0: encoded_data = 8'hff;
+                        1: encoded_data = px.r;
+                        2: encoded_data = px.g;
+                        3: encoded_data = px.b;
+                        4: begin
+                            encoded_data = px.a;
+                            last_write = 1;
+                        end
+                    endcase
+                end else if (op_r[OP_DIFF]) begin
+                    $display("In DIFF write case %d", read_count);
+                    encoded_data = 8'h40 | (vr + 2) << 4 | (vg + 2) << 2 | (vb + 2);
+                    last_write = 1;
+                end else if (op_r[OP_LUMA]) begin
+                    $display("In DIFF write case %d", read_count);
+                    case (read_count)
+                        0: encoded_data = 8'h80 | (vg + 32);
+                        1: begin
+                            encoded_data = (vg_r + 8) << 4 | (vg_b +  8);
+                            last_write = 1;
+                        end
+                    endcase 
+                end else if (op_r[OP_RGB]) begin
+                    $display("In RGB write case %d", read_count);
+                    case (read_count)
+                        0: encoded_data = 8'hfe;
+                        1: encoded_data = px.r;
+                        2: encoded_data = px.g;
+                        3: begin
+                            encoded_data = px.b;
+                            last_write = 1;
+                        end
+                    endcase
 
+                end else begin
+                    $error("Undefined op: %x", op);
+                end
+
+                if (last_write) begin
+                    next_prev_px = px;
+                    next_read_count = '0;
+                    next_state = READ;
+                end
+
+                accel_data_o = encoded_data;
             end else begin
-                $error("Undefined op: %x", op);
+                $display("Write in mode 1 is not supported");
             end
-
-            if (last_write) begin
-                next_prev_px = px;
-                next_read_count = '0;
-                next_state = READ;
-            end
-
-            accel_data_o = encoded_data;
         end
 
         WRITE_CPU: begin
