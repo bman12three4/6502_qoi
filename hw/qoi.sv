@@ -155,7 +155,7 @@ always_comb begin
     working = 0;
     r_flag = '0;
     w_flag = '0;
-    next_read_wait_flag = '0;
+    next_read_wait_flag = read_wait_flag;
     final_flag = '0;
 
     run_match = '0;
@@ -190,7 +190,12 @@ always_comb begin
                 end
 
                 if (mode == 1) begin
-                    next_state = OP_FETCH;
+                    if (read_wait_flag) begin
+                        next_state = READ;
+                        next_read_wait_flag = '0;
+                    end else begin
+                        next_state = OP_FETCH;
+                    end
                 end
             end
         end
@@ -239,6 +244,15 @@ always_comb begin
                 if (read_count > 0 && read_count <= read_size) begin
                     next_decode_buffer[read_count-1] = accel_data_i;
                 end
+                if (accel_rd_addr == '1) begin
+                    next_read_wait_flag = '1;
+                    next_accel_rd_addr = '1;
+                end
+                if (read_wait_flag && accel_rd_addr == '1) begin
+                    next_read_count = read_count;
+                    next_state = READ_CPU;
+                    next_accel_rd_addr = '0;
+                end
             end
 
         end
@@ -256,7 +270,7 @@ always_comb begin
         end
 
         OP_DECODE: begin
-            casez (next_qoi_op) 
+            casez (next_qoi_op)
                 8'b00??????: begin
                     $display("Read QOI_OP_INDEX");
                     next_state = RUN;
@@ -359,8 +373,60 @@ always_comb begin
 
                 next_op = op;
             end else begin
-                $display("Run in mode 1 is not supported");
-                next_state = OP_FETCH;
+                next_prev_px = px;
+                next_state = WRITE;
+                next_read_count = '0;
+                next_run = '0;
+
+                casez (qoi_op)
+                    8'b00??????: begin
+                        $display("Run QOI_OP_INDEX");
+                        index = qoi_op[5:0];
+                        next_px = index_arr[qoi_op[5:0]];
+                    end
+
+                    8'b01??????: begin
+                        $display("Run QOI_OP_DIFF");
+                        next_px.r = prev_px.r + qoi_op[5:4] - 2;
+                        next_px.g = prev_px.g + qoi_op[3:2] - 2;
+                        next_px.b = prev_px.b + qoi_op[1:0] - 2;
+                        next_px.a = prev_px.a;
+                    end
+
+                    8'b10??????: begin
+                        $display("Run QOI_OP_LUMA");
+                        next_px.r = prev_px.r + qoi_op[5:0] - 32 + decode_buffer[0][7:4] - 8;
+                        next_px.g = prev_px.g + qoi_op[5:0] - 32;
+                        next_px.b = prev_px.b + qoi_op[5:0] - 32 + decode_buffer[0][3:0] - 8;
+                        next_px.a = prev_px.a;
+                    end
+
+                    8'b11111110: begin
+                        $display("Run QOI_OP_RGB");
+                        next_px.r = decode_buffer[0];
+                        next_px.g = decode_buffer[1];
+                        next_px.b = decode_buffer[2];
+                        next_px.a = prev_px.a;
+                    end
+
+                    8'b11111111: begin
+                        $display("Run QOI_OP_RGBA");
+                        next_px.r = decode_buffer[0];
+                        next_px.g = decode_buffer[1];
+                        next_px.b = decode_buffer[2];
+                        next_px.a = decode_buffer[3];
+                    end
+
+                    8'b11??????: begin
+                        $display("Run QOI_OP_RUN");
+                        next_px = prev_px;
+                        next_run = qoi_op[5:0];
+                    end
+                endcase
+
+                // Latch? also we want it based on next_px, not px.
+                index = px.r * 3 + px.g * 5 + px.b * 7 + px.a * 11;
+                next_index_val = next_px;
             end
         end
 
@@ -374,8 +440,9 @@ always_comb begin
             next_accel_wr_addr = accel_wr_addr + 1;
             accel_addr = accel_wr_addr;
 
+            next_read_count = read_count + 1;
+
             if (mode == 0) begin
-                next_read_count = read_count + 1;
                 if (op_r[OP_RUN]) begin
                     next_state = RUN;
                 end
@@ -444,7 +511,22 @@ always_comb begin
 
                 accel_data_o = encoded_data;
             end else begin
-                $display("Write in mode 1 is not supported");
+                case (read_count)
+                    0: accel_data_o = px.r;
+                    1: accel_data_o = px.g;
+                    2: accel_data_o = px.b;
+                    3: begin
+                        accel_data_o = px.a;
+                        next_prev_px = px;
+                        next_read_count = '0;
+                        if (next_run) begin
+                            next_run = run - 1;
+                            next_state = WRITE;
+                        end else begin
+                            next_state = OP_FETCH;
+                        end
+                    end
+                endcase
             end
         end
 
