@@ -425,7 +425,7 @@ always_comb begin
                 endcase
 
                 // Latch? also we want it based on next_px, not px.
-                index = px.r * 3 + px.g * 5 + px.b * 7 + px.a * 11;
+                index = next_px.r * 3 + next_px.g * 5 + next_px.b * 7 + next_px.a * 11;
                 next_index_val = next_px;
             end
         end
@@ -519,6 +519,7 @@ always_comb begin
                         accel_data_o = px.a;
                         next_prev_px = px;
                         next_read_count = '0;
+                        next_count = count + 1;
                         if (next_run) begin
                             next_run = run - 1;
                             next_state = WRITE;
@@ -527,18 +528,29 @@ always_comb begin
                         end
                     end
                 endcase
+
+                if (accel_wr_addr == '1) begin
+                    next_state = WRITE_CPU;
+                end
             end
         end
 
         WRITE_CPU: begin
             mem_sel = 0;
             w_flag = '1;
-            if (count == (size - 1)) begin
+            if (count >= (size - 1)) begin
                 final_flag = '1;
             end
 
             if (addr == '1 && mem_cs == '1) begin
                 next_state = WRITE;
+            end
+
+            if (state == 1) begin
+                next_state = OP_FETCH;
+                if (next_run) begin
+                    next_state = WRITE;
+                end
             end
         end
     endcase
