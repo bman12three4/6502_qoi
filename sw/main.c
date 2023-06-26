@@ -80,6 +80,11 @@ int main(void)
 	while(!(accel_ctrl[3] & QOI_FINAL_FLAG));
 	remain = accel_ctrl[1];
 	remain += accel_ctrl[2] << 8;
+	// There is some kind of bug here where in decompress
+	// mode the address is 1 more than it is for compression
+	if (remain == 0) {
+		remain = 1023;
+	}
 	memcpy(img+d, accel, remain+1);
 
 	return 0;
