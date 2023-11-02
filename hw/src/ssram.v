@@ -13,7 +13,7 @@ module ssram
 );
 
 reg [DATA_WIDTH-1:0]  _data;
-reg [DATA_WIDTH-1:0]  mem [DEPTH];
+reg [DATA_WIDTH-1:0]  mem [DEPTH-1:0];
 
 always @(posedge clk) begin
     if (cs & we) begin
@@ -26,6 +26,6 @@ always @(posedge clk) begin
     end
 end
 
-assign data = cs & oe & !we ? _data : 'z;
+assign data = cs & oe & !we ? _data : 8'hzz;
 
 endmodule
