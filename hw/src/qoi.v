@@ -12,16 +12,24 @@ module qoi
     input [9:0] addr
 );
 
-reg [9:0] accel_rd_addr;
-wire [9:0] next_accel_rd_addr;
-reg [9:0] accel_wr_addr;
-wire [9:0] next_accel_wr_addr;
-wire [9:0] accel_addr;
-wire [7:0] accel_data_o, accel_data_i;
-wire [7:0] mem_data_o;
-wire accel_cs, accel_we;
+localparam IDLE = 0;
+localparam READ_CPU = 1;
+localparam READ = 2;
+localparam RUN = 3;
+localparam WRITE = 4;
+localparam WRITE_CPU = 5;
 
-wire mem_sel;
+reg [9:0] accel_rd_addr;
+reg [9:0] next_accel_rd_addr;
+reg [9:0] accel_wr_addr;
+reg [9:0] next_accel_wr_addr;
+reg [9:0] accel_addr;
+reg [7:0] accel_data_o;
+wire [7:0] accel_data_i;
+wire [7:0] mem_data_o;
+reg accel_cs, accel_we;
+
+reg mem_sel;
 
 wire mem_flag;
 
@@ -46,44 +54,52 @@ memory_unit u_memory_unit(
     .flag_o(mem_flag)
 );
 
-wire [7:0] input_data[7:0];
+reg [7:0] input_data[7:0];
 wire [7:0] output_data[7:0];
 
-wire [7:0]  encoded_data;
+reg [7:0]  encoded_data;
 
-wire [5:0] index;
-wire [31:0]  index_arr[63:0];
+reg [5:0] index;
+reg [31:0]  index_arr[63:0];
 reg [31:0] index_val;
-wire [31:0] next_index_val;
+reg [31:0] next_index_val;
 
 wire [29:0] size;
 reg [29:0]  count;
-wire [29:0] next_count;
+reg [29:0] next_count;
 reg  is_first;
-wire next_is_first;
-wire [31:0] next_px,  next_prev_px;
+reg next_is_first;
+reg [31:0] next_px,  next_prev_px;
 reg [31:0] px, prev_px;
-wire r_flag, w_flag;
+reg r_flag, w_flag;
 reg read_wait_flag;
-wire next_read_wait_flag;
-wire final_flag;
-wire working;
+reg next_read_wait_flag;
+reg final_flag;
+reg working;
 
 reg [5:0] run, run_r;
-wire [5:0] next_run, next_run_r;
+reg [5:0] next_run, next_run_r;
 
 wire signed [8:0] vr, vg, vb;
 wire  signed [8:0] vg_r, vg_b;
 
-wire index_op;
-wire run_op;
-wire run_match;
-wire rgba_op;
-wire diff_op;
-wire luma_op;
-wire rgb_op;
+reg index_op;
+reg run_op;
+reg run_match;
+reg rgba_op;
+reg diff_op;
+reg luma_op;
+reg rgb_op;
 
-reg [5:0] op, op_r, next_op;
+wire [5:0] op;
+reg [5:0] op_r, next_op;
+
+localparam OP_RGB = 0;
+localparam OP_RGBA = 1;
+localparam OP_INDEX = 2;
+localparam OP_DIFF = 3;
+localparam OP_LUMA = 4;
+localparam OP_RUN = 5;
 
 assign op[0] = rgb_op;
 assign op[1] = rgba_op;
@@ -93,10 +109,10 @@ assign op[4] = luma_op;
 assign op[5] = run_op;
 
 reg last_write;
-wire next_last_write;
+reg next_last_write;
 
 reg [2:0] read_count;
-wire [2:0] next_read_count;
+reg [2:0] next_read_count;
 
 reg [2:0] state, next_state;
 
@@ -127,12 +143,12 @@ assign output_data[2][7:2] = 6'b0;
 
 assign output_data[0] = encoded_data;
 
-wire mem_cs_q;
+reg mem_cs_q;
 assign data_o = cs ? output_data[addr] : mem_cs_q ? mem_data_o : 8'hzz;
 
-assign vr = px.r - prev_px.r;
-assign vg = px.g - prev_px.g;
-assign vb = px.b - prev_px.b;
+assign vr = px[7:0] - prev_px[7:0];
+assign vg = px[15:8] - prev_px[15:8];
+assign vb = px[23:16] - prev_px[23:16];
 
 assign vg_r = vr - vg;
 assign vg_b = vb - vg;
@@ -226,10 +242,10 @@ always @(*) begin
         RUN: begin
             next_is_first = 0;
 
-            index = px.r * 3 + px.g * 5 + px.b * 7 + px.a * 11;
+            index = px[7:0] * 3 + px[15:8] * 5 + px[23:16] * 7 + px[31:24] * 11;
             index_op = px == index_val;
 
-            rgba_op = px.a != prev_px.a;
+            rgba_op = px[31:24] != prev_px[31:24];
 
             // Try to clean this up, does it really need 3 if statements?
             if (px == prev_px && !is_first) begin
@@ -259,14 +275,14 @@ always @(*) begin
                 vr > -3 && vr < 2 &&
                 vg > -3 && vg < 2 &&
                 vb > -3 && vb < 2 &&
-                px.a == prev_px.a
+                px[31:24] == prev_px[31:24]
             );
 
             luma_op = (
                 vg_r >  -9 && vg_r <  8 &&
                 vg   > -33 && vg   < 32 &&
                 vg_b >  -9 && vg_b <  8 &&
-                px.a == prev_px.a
+                px[31:24] == prev_px[31:24]
             );
 
             rgb_op = ~(diff_op | luma_op | index_op | rgba_op);
@@ -321,11 +337,11 @@ always @(*) begin
                 $display("In RGBA write case %d", read_count);
                 case (read_count)
                     0: encoded_data = 8'hff;
-                    1: encoded_data = px.r;
-                    2: encoded_data = px.g;
-                    3: encoded_data = px.b;
+                    1: encoded_data = px[7:0];
+                    2: encoded_data = px[15:8];
+                    3: encoded_data = px[23:16];
                     4: begin
-                        encoded_data = px.a;
+                        encoded_data = px[31:24];
                         last_write = 1;
                     end
                 endcase
@@ -346,10 +362,10 @@ always @(*) begin
                 $display("In RGB write case %d", read_count);
                 case (read_count)
                     0: encoded_data = 8'hfe;
-                    1: encoded_data = px.r;
-                    2: encoded_data = px.g;
+                    1: encoded_data = px[7:0];
+                    2: encoded_data = px[15:8];
                     3: begin
-                        encoded_data = px.b;
+                        encoded_data = px[23:16];
                         last_write = 1;
                     end
                 endcase

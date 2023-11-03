@@ -1,27 +1,32 @@
+`timescale 10ns/1ns
+
 module tb();
 
-timeunit 10ns;
-timeprecision 1ns;
+// timeunit 10ns;
+// timeprecision 1ns;
 
-import qoi_types::*;
+// import qoi_types::*;
 
-logic clk, reset;
-logic [15:0] AB;
-logic [7:0] DI, DO;
-logic WE, IRQ, NMI, RDY, SYNC;
+reg clk, reset;
+wire [15:0] AB;
+wire [7:0] DI, DO;
+reg IRQ, NMI, RDY;
+wire WE, SYNC;
 
-logic [7:0] new_di;
+wire [7:0] new_di;
 //assign DI = new_di;
 
-logic [7:0] tb_di;
+reg [7:0] tb_di;
 assign DI = new_di;
 
-always #1 clk = clk === '0;
+always #1 clk = clk === 0;
 
 cpu_65c02 u_cpu(.*);
 
-logic qoi_cs, qoi_cs_q;
-logic [7:0] accel_do, accel_do_q;
+wire qoi_cs;
+reg qoi_cs_q;
+wire [7:0] accel_do;
+reg [7:0] accel_do_q;
 
 qoi u_qoi(
 	.clk(clk),
@@ -34,18 +39,19 @@ qoi u_qoi(
 	.addr(AB[9:0])
 	);
 
-logic [7:0] ram [4096*8];
-logic [7:0] img [4096];
-logic [7:0] qoi [4096];
-logic [7:0] rom [4096*4];
+reg [7:0] ram [4096*8-1:0];
+reg [7:0] img [4096-1:0];
+reg [7:0] qoi [4096-1:0];
+reg [7:0] rom [4096*4-1:0];
 
-logic img_access, img_access_q;
-logic qoi_access;
+wire img_access, img_access_q;
+wire qoi_access;
 
-logic prg_rom_cs_q;
-logic ram_cs_q;
+reg prg_rom_cs_q;
+reg ram_cs_q;
 
-logic accel_mem_cs, accel_mem_cs_q;
+wire accel_mem_cs;
+reg accel_mem_cs_q;
 
 assign img_access = (AB >= 16'h8000 && AB < 16'h9000);
 assign qoi_access = (AB >= 16'h9000 && AB < 16'ha000);
@@ -104,14 +110,14 @@ end
 initial begin
 	$readmemh("weary_spaghet.mem", img);
 	$readmemh("qoi_sim.hex", rom);
-	reset = '1;
-	RDY = '1;
-	IRQ = '0;
-	NMI = '0;
+	reset = 1;
+	RDY = 1;
+	IRQ = 0;
+	NMI = 0;
 	repeat (10) @(posedge clk);
-	reset = '0;
+	reset = 0;
 	while(1) begin
-		if (AB == '1) begin
+		if (AB == 16'hffff) begin
 			repeat(5) @(posedge clk);
 			$writememh("outputqoi.mem", qoi);
 			$writememh("output_buffer.mem", u_qoi.u_memory_unit.output_buffer.mem);

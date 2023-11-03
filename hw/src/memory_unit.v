@@ -5,33 +5,33 @@ module memory_unit
 
     input [9:0] addr_a,
     input [7:0] data_a_i,
-    output [7:0] data_a_o,
+    output reg [7:0] data_a_o,
     input cs_a, we_a,
 
     input [9:0] addr_b,
     input [7:0] data_b_i,
-    output [7:0] data_b_o,
+    output reg [7:0] data_b_o,
     input cs_b, we_b,
 
     input sel,
 
-    output flag_o
+    output reg flag_o
 );
 
 logic flag, next_flag;
 
 //assign flag_o = next_flag;
 
-wire [7:0] input_buffer_data;
+reg [7:0] input_buffer_data;
 wire [7:0] _input_buffer_data;
-wire [7:0]  output_buffer_data;
+reg [7:0]  output_buffer_data;
 wire [7:0] _output_buffer_data;
 
-wire [9:0] input_buffer_addr;
-wire [9:0] output_buffer_addr;
+reg [9:0] input_buffer_addr;
+reg [9:0] output_buffer_addr;
 
-wire input_buffer_cs, input_buffer_we, input_buffer_oe;
-wire output_buffer_cs, output_buffer_we, output_buffer_oe;
+reg input_buffer_cs, input_buffer_we, input_buffer_oe;
+reg output_buffer_cs, output_buffer_we, output_buffer_oe;
 
 assign _input_buffer_data = !input_buffer_oe ? input_buffer_data : 8'hzz;
 assign _output_buffer_data = !output_buffer_oe ? output_buffer_data : 8'hzz;

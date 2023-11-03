@@ -2,6 +2,7 @@ IVERILOG=iverilog
 IVERILOG_ARGS=-g2005 -DSIM
 #SRCS=ssram.sv memory_unit.sv qoi.sv ALU.v cpu_65c02.v
 SRCS+=$(shell find ../src/ -type f -name "*.*v")
+SRCS+=$(shell find src/ -type f -name "*.*v")
 TB=tb.sv
 TOP=tb
 NAME=simv
