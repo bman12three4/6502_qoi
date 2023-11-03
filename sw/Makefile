@@ -24,7 +24,7 @@ $(HEX): $(BIN)
 	objcopy --input-target=binary --output-target=verilog --verilog-data-width 1 $(BIN) $(HEX)
 
 install: $(HEX)
-	cp $(HEX) ../hw
+	cp $(HEX) ../hw/sim
 
 %.o: %.c $(LISTS)
 	$(CC) $(CFLAGS) -l $(LISTS)/$<.list -c $< -o $@
